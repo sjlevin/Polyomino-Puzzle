@@ -5,7 +5,8 @@ h2 { margin-bottom: 10px; }
 #puzzles, #pieces { margin-bottom: 20px; }
 #puzzle-row, #piece-supply { display: flex; gap: 15px; flex-wrap: wrap; }
 .puzzle-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
-#score { font-size: 24px; font-weight: bold; }
+#score { font-size: 16px; line-height: 1.6; }
+#score span { font-weight: bold; }
 
 .puzzle {
     background: #2d2d44;
@@ -16,6 +17,8 @@ h2 { margin-bottom: 10px; }
     align-items: center;
 }
 .puzzle-info { margin-top: 8px; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+.timer-container { margin-top: 5px; }
+.timer { display: block; margin: 0 auto; }
 
 .reward-preview { background: transparent; padding: 2px; cursor: default; }
 .reward-preview .piece-grid .cell.filled { background: #666; }

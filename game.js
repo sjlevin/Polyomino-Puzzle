@@ -11,55 +11,19 @@ const PIECES = {
     tetro_o: { shape: [[1,1],[1,1]], level: 4 },
 };
 
-// Puzzle definitions: grid where 1=empty space to fill
-// Tier 1: 0 points, rewards a piece (unique shapes only)
-const TIER1_PUZZLES = [
-    { grid: [[1]], points: 0, reward: 'dot' },
-    { grid: [[1,1]], points: 0, reward: 'domino' },
-    { grid: [[1,1,1]], points: 0, reward: 'tromino_i' },
-    { grid: [[1,0],[1,1]], points: 0, reward: 'tromino_l' },
-    { grid: [[1,1,1,1]], points: 0, reward: 'tetro_i' },
-    { grid: [[1,1],[1,1]], points: 0, reward: 'tetro_o' },
-    { grid: [[1,1,1],[0,1,0]], points: 0, reward: 'tetro_t' },
-    { grid: [[0,1,1],[1,1,0]], points: 0, reward: 'tetro_s' },
-    { grid: [[1,0],[1,0],[1,1]], points: 0, reward: 'tetro_l' },
-    { grid: [[1,1,1],[1,0,0]], points: 0, reward: 'tromino_l' },
-    { grid: [[1,1],[1,0],[1,0]], points: 0, reward: 'tromino_i' },
-    { grid: [[1,1,0],[0,1,1]], points: 0, reward: 'tetro_s' },
-    { grid: [[1,1],[1,1],[1,0]], points: 0, reward: 'tetro_l' }, // square + 1
-    { grid: [[1,1,1],[1,1,0]], points: 0, reward: 'tetro_t' }, // square + 1
-    { grid: [[1,1],[1,1],[0,1]], points: 0, reward: 'tetro_o' }, // square + 1
-];
-
-// Tier 2: points, no piece reward - unique interesting shapes
-const TIER2_PUZZLES = [
-    { grid: [[1,1,1,1,1,1]], points: 4, reward: null }, // long line
-    { grid: [[1,1,0],[0,1,0],[0,1,1],[0,0,1]], points: 5, reward: null }, // zigzag
-    { grid: [[1,1,1],[0,0,1],[1,1,1]], points: 5, reward: null }, // S shape
-    { grid: [[1,0,1],[1,1,1],[1,0,1]], points: 6, reward: null }, // plus with corners
-    { grid: [[1,1,0,0],[0,1,1,0],[0,0,1,1]], points: 6, reward: null }, // diagonal steps
-    { grid: [[1,1,1,1],[1,0,0,0],[1,1,1,1]], points: 7, reward: null }, // C shape
-    { grid: [[1,0,0,1],[1,1,1,1],[1,0,0,1]], points: 7, reward: null }, // H shape
-    { grid: [[0,1,0],[1,1,1],[0,1,0],[1,1,1],[0,1,0]], points: 8, reward: null }, // totem
-    { grid: [[1,1,0,1,1],[0,1,1,1,0]], points: 8, reward: null }, // bow tie
-    { grid: [[1,0,0,0,1],[1,1,1,1,1],[1,0,0,0,1]], points: 9, reward: null }, // wide H
-    { grid: [[1,1,1],[1,0,1],[1,0,1],[1,1,1]], points: 9, reward: null }, // frame
-    { grid: [[0,0,1],[0,1,1],[1,1,0],[1,0,0],[1,1,1]], points: 10, reward: null }, // snake
-    { grid: [[1,0,1,0,1],[1,1,1,1,1],[1,0,1,0,1]], points: 12, reward: null }, // comb
-    { grid: [[1,1,0],[1,1,0],[1,1,1]], points: 6, reward: null }, // square + L
-    { grid: [[1,1,1],[1,1,1],[0,0,1]], points: 6, reward: null }, // square + corner
-    { grid: [[1,1,0,0],[1,1,0,0],[1,1,1,1]], points: 8, reward: null }, // double square + line
-    { grid: [[1,1,1,1],[1,1,0,0],[1,1,0,0]], points: 8, reward: null }, // square + bar
-    { grid: [[1,1,0],[1,1,0],[0,1,1],[0,1,1]], points: 8, reward: null }, // two squares diagonal
-    { grid: [[1,1,1],[1,1,1],[1,1,0]], points: 7, reward: null }, // big square minus corner
-];
+// TIER1_PUZZLES and TIER2_PUZZLES loaded from puzzles.js
 
 let playerPieces = ['dot', 'domino'];
 let tier1Puzzles = [];
 let tier2Puzzles = [];
 let tier1Recent = []; // indices of recently used puzzles
 let tier2Recent = [];
+
+const TIER1_TURNS = 8;
+const TIER2_TURNS = 12;
 let points = 0;
+let totalTurns = 0;
+let stats = { tier1Solved: 0, tier1Expired: 0, tier2Solved: 0, tier2Expired: 0 };
 let draggedPiece = null;
 let draggedIndex = null;
 let currentRotation = 0;
@@ -136,6 +100,34 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
     return el;
 }
 
+function createTimerSVG(turnsLeft, maxTurns) {
+    const pct = turnsLeft / maxTurns;
+    const color = pct > 0.6 ? '#4a4' : pct >= 0.3 ? '#ca2' : '#c44';
+    const size = 36;
+    const r = 14;
+    const cx = size / 2;
+    const cy = size / 2;
+    
+    let wedges = '';
+    for (let i = 0; i < maxTurns; i++) {
+        if (i >= turnsLeft) continue;
+        const startAngle = (i / maxTurns) * 2 * Math.PI - Math.PI / 2;
+        const endAngle = ((i + 1) / maxTurns) * 2 * Math.PI - Math.PI / 2;
+        const x1 = cx + r * Math.cos(startAngle);
+        const y1 = cy + r * Math.sin(startAngle);
+        const x2 = cx + r * Math.cos(endAngle);
+        const y2 = cy + r * Math.sin(endAngle);
+        const largeArc = (endAngle - startAngle > Math.PI) ? 1 : 0;
+        wedges += `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2} Z" fill="${color}" stroke="#222" stroke-width="0.5"/>`;
+    }
+    
+    return `<svg width="${size}" height="${size}" class="timer">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="#333" stroke="#555" stroke-width="1"/>
+        ${wedges}
+        <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="12" font-weight="bold">${turnsLeft}</text>
+    </svg>`;
+}
+
 function createPuzzleElement(puzzle, index, tier) {
     const el = document.createElement('div');
     el.className = 'puzzle';
@@ -176,8 +168,14 @@ function createPuzzleElement(puzzle, index, tier) {
         info.appendChild(rewardEl);
     }
     
+    // Add timer
+    const timerContainer = document.createElement('div');
+    timerContainer.className = 'timer-container';
+    timerContainer.innerHTML = createTimerSVG(puzzle.turnsLeft, puzzle.maxTurns);
+    
     el.appendChild(grid);
     el.appendChild(info);
+    el.appendChild(timerContainer);
     
     el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
     el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
@@ -231,6 +229,9 @@ function tryPlacePiece(tier, puzzleIndex) {
         puzzle.placedPieces.push({ type: draggedPiece, rotation: currentRotation, mirror: currentMirror, ...placement });
         playerPieces.splice(draggedIndex, 1);
         
+        // Decrement turns on ALL puzzles
+        decrementAllTurns();
+        
         // Check completion
         const totalEmpty = puzzle.grid.flat().filter(c => c).length;
         const totalFilled = puzzle.placedPieces.reduce((sum, p) => 
@@ -242,6 +243,8 @@ function tryPlacePiece(tier, puzzleIndex) {
             puzzle.placedPieces.forEach(p => playerPieces.push(p.type));
             // Add reward piece if tier 1
             if (puzzle.reward) playerPieces.push(puzzle.reward);
+            if (tier === 1) stats.tier1Solved++;
+            else stats.tier2Solved++;
             puzzleArray.splice(puzzleIndex, 1);
             addNewPuzzle(tier);
         }
@@ -256,6 +259,7 @@ function addNewPuzzle(tier) {
     const puzzles = tier === 1 ? TIER1_PUZZLES : TIER2_PUZZLES;
     const target = tier === 1 ? tier1Puzzles : tier2Puzzles;
     const recent = tier === 1 ? tier1Recent : tier2Recent;
+    const maxTurns = tier === 1 ? TIER1_TURNS : TIER2_TURNS;
     
     // Get indices currently in use
     const inUse = target.map(p => p.sourceIndex);
@@ -266,11 +270,29 @@ function addNewPuzzle(tier) {
     const pool = available.length > 0 ? available : puzzles.map((_, i) => i).filter(i => !inUse.includes(i));
     const idx = pool[Math.floor(Math.random() * pool.length)];
     
-    target.push({ ...puzzles[idx], tier, sourceIndex: idx, placedPieces: [] });
+    target.push({ ...puzzles[idx], tier, sourceIndex: idx, placedPieces: [], turnsLeft: maxTurns, maxTurns });
     
     // Track in recent, keep only last 5
     recent.push(idx);
     if (recent.length > 5) recent.shift();
+}
+
+function decrementAllTurns() {
+    totalTurns++;
+    [tier1Puzzles, tier2Puzzles].forEach((puzzles, tierIdx) => {
+        const tier = tierIdx + 1;
+        for (let i = puzzles.length - 1; i >= 0; i--) {
+            puzzles[i].turnsLeft--;
+            if (puzzles[i].turnsLeft <= 0) {
+                // Puzzle expired - refund pieces
+                puzzles[i].placedPieces.forEach(p => playerPieces.push(p.type));
+                if (tier === 1) stats.tier1Expired++;
+                else stats.tier2Expired++;
+                puzzles.splice(i, 1);
+                addNewPuzzle(tier);
+            }
+        }
+    });
 }
 
 function render() {
@@ -289,6 +311,12 @@ function render() {
     sortedPieces.forEach((type, i) => pieceSupply.appendChild(createPieceElement(type, playerPieces.indexOf(type), currentRotation, true, currentMirror)));
     
     document.getElementById('points').textContent = points;
+    document.getElementById('turns').textContent = totalTurns;
+    document.getElementById('ppt').textContent = totalTurns > 0 ? (points / totalTurns).toFixed(2) : '0.00';
+    document.getElementById('t1-solved').textContent = stats.tier1Solved;
+    document.getElementById('t1-expired').textContent = stats.tier1Expired;
+    document.getElementById('t2-solved').textContent = stats.tier2Solved;
+    document.getElementById('t2-expired').textContent = stats.tier2Expired;
 }
 
 // Initialize with 4 of each tier
