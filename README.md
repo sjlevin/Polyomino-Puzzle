@@ -66,30 +66,13 @@ Timer colors:
 polyomino-puzzle/
 ├── index.html          # Main HTML file
 ├── style.css           # Styling
-├── game.js             # Game logic
-├── puzzles.js          # Auto-generated puzzle definitions
-├── generate-puzzles.js # Puzzle generator script
-├── validate-puzzles.js # Duplicate checker script
+├── game.js             # Game logic + puzzle generation
+├── generate-puzzles.js # Standalone puzzle generator (for testing)
+├── test.js             # Unit tests
 └── README.md           # This file
 ```
 
 ## Development
-
-### Regenerate Puzzles
-
-```bash
-node generate-puzzles.js
-```
-
-Generates new random puzzles for both tiers and writes to `puzzles.js`. All puzzles are guaranteed unique (no rotational or mirror duplicates).
-
-### Validate Puzzles
-
-```bash
-node validate-puzzles.js
-```
-
-Checks `puzzles.js` for any duplicate puzzles (accounting for rotation and mirroring). Exits with error code 1 if duplicates found.
 
 ### Run Tests
 
@@ -98,6 +81,17 @@ node test.js
 ```
 
 Runs unit tests for core game logic (rotation, placement, snap-to-grid). Exits with error code 1 if any tests fail.
+
+### Puzzle Generation
+
+Puzzles are generated at runtime - no static puzzle file needed. Each puzzle gets a unique ID like `T2-005-a7f2` (tier, sequence, hash).
+
+The generator ensures:
+- No duplicate puzzles during a session
+- Interesting shapes (no boring rectangles)
+- Appropriate size for each tier (T1: 2-5 cells, T2: 6-14 cells)
+
+Click "Show Puzzle History" in-game to see all generated puzzles.
 
 ### Puzzle Format
 

@@ -11,13 +11,14 @@ const PIECES = {
     tetro_o: { shape: [[1,1],[1,1]], level: 4 },
 };
 
-// TIER1_PUZZLES and TIER2_PUZZLES loaded from puzzles.js
+const REWARDS = ['domino', 'tromino_i', 'tromino_l', 'tetro_i', 'tetro_o', 'tetro_t', 'tetro_s', 'tetro_l'];
 
 let playerPieces = ['dot', 'domino'];
 let tier1Puzzles = [];
 let tier2Puzzles = [];
-let tier1Recent = []; // indices of recently used puzzles
-let tier2Recent = [];
+let seenPuzzles = new Set(); // canonical forms of all generated puzzles
+let puzzleHistory = [];
+let puzzleSeq = { 1: 0, 2: 0 };
 
 const TIER1_TURNS = 8;
 const TIER2_TURNS = 12;
@@ -26,9 +27,176 @@ let totalTurns = 0;
 let stats = { tier1Solved: 0, tier1Expired: 0, tier2Solved: 0, tier2Expired: 0 };
 let draggedPiece = null;
 let draggedIndex = null;
-let draggedFromPuzzle = null; // { tier, puzzleIndex, placedIndex } when moving within puzzle
+let draggedFromPuzzle = null;
 let currentRotation = 0;
 let currentMirror = false;
+
+// Puzzle generation
+function generateRandomPuzzle(targetCells) {
+    const maxDim = Math.min(6, targetCells);
+    const width = Math.floor(Math.random() * (maxDim - 1)) + 2;
+    const height = Math.floor(Math.random() * (maxDim - 1)) + 2;
+    
+    const grid = Array(height).fill(null).map(() => Array(width).fill(0));
+    let cells = [{ r: Math.floor(Math.random() * height), c: Math.floor(Math.random() * width) }];
+    grid[cells[0].r][cells[0].c] = 1;
+    let filled = 1;
+    
+    while (filled < targetCells) {
+        const adjacent = [];
+        for (const cell of cells) {
+            for (const [dr, dc] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+                const nr = cell.r + dr, nc = cell.c + dc;
+                if (nr >= 0 && nr < height && nc >= 0 && nc < width && !grid[nr][nc]) {
+                    adjacent.push({ r: nr, c: nc });
+                }
+            }
+        }
+        if (adjacent.length === 0) break;
+        const next = adjacent[Math.floor(Math.random() * adjacent.length)];
+        grid[next.r][next.c] = 1;
+        cells.push(next);
+        filled++;
+    }
+    
+    let trimmed = grid.filter(row => row.some(c => c));
+    if (trimmed.length === 0) return null;
+    const minCol = Math.min(...trimmed.map(row => row.findIndex(c => c)).filter(i => i >= 0));
+    const maxCol = Math.max(...trimmed.map(row => row.lastIndexOf(1)));
+    trimmed = trimmed.map(row => row.slice(minCol, maxCol + 1));
+    return trimmed;
+}
+
+function countCells(grid) {
+    return grid.flat().filter(c => c).length;
+}
+
+function normalizeGrid(grid) {
+    let g = grid.filter(row => row.some(c => c));
+    if (g.length === 0) return '[]';
+    const minCol = Math.min(...g.map(row => row.findIndex(c => c)).filter(i => i >= 0));
+    const maxCol = Math.max(...g.map(row => row.lastIndexOf(1)));
+    g = g.map(row => row.slice(minCol, maxCol + 1));
+    return JSON.stringify(g);
+}
+
+function rotateGrid(grid) {
+    const rows = grid.length, cols = grid[0].length;
+    const rotated = [];
+    for (let c = 0; c < cols; c++) {
+        rotated.push([]);
+        for (let r = rows - 1; r >= 0; r--) {
+            rotated[c].push(grid[r][c]);
+        }
+    }
+    return rotated;
+}
+
+function mirrorGrid(grid) {
+    return grid.map(row => [...row].reverse());
+}
+
+function getCanonical(grid) {
+    let variants = [];
+    let g = grid;
+    for (let i = 0; i < 4; i++) {
+        variants.push(normalizeGrid(g));
+        variants.push(normalizeGrid(mirrorGrid(g)));
+        g = rotateGrid(g);
+    }
+    return variants.sort()[0];
+}
+
+function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash).toString(16).slice(0, 4);
+}
+
+function isInteresting(grid) {
+    const cells = countCells(grid);
+    const rows = grid.length;
+    const cols = grid[0].length;
+    const boundingArea = rows * cols;
+    const fillRatio = cells / boundingArea;
+    const emptyInBounds = boundingArea - cells;
+    
+    // Reject perfect rectangles
+    if (cells === boundingArea && rows > 1 && cols > 1) return false;
+    
+    // Reject near-rectangles (1-2 cells missing from bounding box)
+    if (emptyInBounds <= 2 && Math.min(rows, cols) >= 2 && cells > 4) return false;
+    
+    // Reject high fill ratio for chunky shapes
+    if (fillRatio > 0.75 && Math.min(rows, cols) > 2) return false;
+    
+    let holes = 0;
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            if (grid[r][c]) continue;
+            const neighbors = [[0,1],[0,-1],[1,0],[-1,0]].filter(([dr,dc]) => {
+                const nr = r + dr, nc = c + dc;
+                return nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc];
+            });
+            if (neighbors.length >= 3) holes++;
+        }
+    }
+    
+    if (cells >= 8 && fillRatio > 0.65 && holes === 0) return false;
+    return true;
+}
+
+function getReward(cells) {
+    if (cells <= 2) return 'domino';
+    if (cells <= 3) return REWARDS[1 + Math.floor(Math.random() * 2)];
+    return REWARDS[3 + Math.floor(Math.random() * 5)];
+}
+
+function generatePuzzle(tier) {
+    const [minCells, maxCells] = tier === 1 ? [2, 5] : [6, 14];
+    const maxTurns = tier === 1 ? TIER1_TURNS : TIER2_TURNS;
+    
+    for (let attempts = 0; attempts < 500; attempts++) {
+        const targetCells = minCells + Math.floor(Math.random() * (maxCells - minCells + 1));
+        const grid = generateRandomPuzzle(targetCells);
+        if (!grid) continue;
+        
+        const cells = countCells(grid);
+        if (cells < minCells || cells > maxCells) continue;
+        if (!isInteresting(grid)) continue;
+        
+        const canonical = getCanonical(grid);
+        if (seenPuzzles.has(canonical)) continue;
+        
+        seenPuzzles.add(canonical);
+        puzzleSeq[tier]++;
+        
+        const id = `T${tier}-${String(puzzleSeq[tier]).padStart(3, '0')}-${hashCode(canonical)}`;
+        const pts = tier === 1 ? 0 : Math.floor(cells * 0.8);
+        const reward = tier === 1 ? getReward(cells) : null;
+        
+        const puzzle = { id, grid, points: pts, reward, tier, placedPieces: [], turnsLeft: maxTurns, maxTurns };
+        puzzleHistory.push({ id, grid: JSON.parse(JSON.stringify(grid)), tier, cells, timestamp: Date.now(), status: 'active' });
+        return puzzle;
+    }
+    
+    // Fallback: clear seen and try again
+    seenPuzzles.clear();
+    return generatePuzzle(tier);
+}
+
+function addNewPuzzle(tier) {
+    const target = tier === 1 ? tier1Puzzles : tier2Puzzles;
+    target.push(generatePuzzle(tier));
+}
+
+function updatePuzzleStatus(id, status) {
+    const entry = puzzleHistory.find(p => p.id === id);
+    if (entry) entry.status = status;
+}
 
 function rotateShape(shape) {
     const rows = shape.length, cols = shape[0].length;
@@ -144,7 +312,8 @@ function createPuzzleElement(puzzle, index, tier) {
     // Debug tooltip
     const cells = puzzle.grid.flat().filter(c => c).length;
     const placed = puzzle.placedPieces.map(p => p.type).join(', ') || 'none';
-    el.title = `${puzzle.id || 'unknown'}\nCells: ${cells}\nPlaced: ${placed}\nTurns: ${puzzle.turnsLeft}/${puzzle.maxTurns}`;
+    const gridStr = puzzle.grid.map(r => r.map(c => c ? '█' : '·').join('')).join('\n');
+    el.title = `${puzzle.id}\nSize: ${puzzle.grid[0].length}x${puzzle.grid.length} (${cells} cells)\nPlaced: ${placed}\nTurns: ${puzzle.turnsLeft}/${puzzle.maxTurns}\n\n${gridStr}`;
     
     const grid = document.createElement('div');
     grid.className = 'puzzle-grid';
@@ -372,6 +541,7 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
             if (puzzle.reward) playerPieces.push(puzzle.reward);
             if (tier === 1) stats.tier1Solved++;
             else stats.tier2Solved++;
+            updatePuzzleStatus(puzzle.id, 'solved');
             puzzleArray.splice(puzzleIndex, 1);
             addNewPuzzle(tier);
         }
@@ -381,28 +551,6 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
     draggedPiece = null;
     draggedIndex = null;
     draggedFromPuzzle = null;
-}
-
-function addNewPuzzle(tier) {
-    const puzzles = tier === 1 ? TIER1_PUZZLES : TIER2_PUZZLES;
-    const target = tier === 1 ? tier1Puzzles : tier2Puzzles;
-    const recent = tier === 1 ? tier1Recent : tier2Recent;
-    const maxTurns = tier === 1 ? TIER1_TURNS : TIER2_TURNS;
-    
-    // Get indices currently in use
-    const inUse = target.map(p => p.sourceIndex);
-    // Available = not in use and not in recent
-    const available = puzzles.map((_, i) => i).filter(i => !inUse.includes(i) && !recent.includes(i));
-    
-    // Pick random from available, or from all non-in-use if none available
-    const pool = available.length > 0 ? available : puzzles.map((_, i) => i).filter(i => !inUse.includes(i));
-    const idx = pool[Math.floor(Math.random() * pool.length)];
-    
-    target.push({ ...puzzles[idx], tier, sourceIndex: idx, placedPieces: [], turnsLeft: maxTurns, maxTurns, id: puzzles[idx].id });
-    
-    // Track in recent, keep only last 5
-    recent.push(idx);
-    if (recent.length > 5) recent.shift();
 }
 
 function decrementAllTurns() {
@@ -416,6 +564,7 @@ function decrementAllTurns() {
                 puzzles[i].placedPieces.forEach(p => playerPieces.push(p.type));
                 if (tier === 1) stats.tier1Expired++;
                 else stats.tier2Expired++;
+                updatePuzzleStatus(puzzles[i].id, 'expired');
                 puzzles.splice(i, 1);
                 addNewPuzzle(tier);
             }
@@ -446,19 +595,34 @@ function render() {
     document.getElementById('t1-expired').textContent = stats.tier1Expired;
     document.getElementById('t2-solved').textContent = stats.tier2Solved;
     document.getElementById('t2-expired').textContent = stats.tier2Expired;
+    renderHistory();
 }
 
-// Initialize with 4 of each tier, ensuring at least one easy T1 puzzle
+// Generate easy puzzle (<=3 cells) for starting hand
 function addEasyPuzzle() {
-    // Find puzzles with <= 3 cells (solvable with dot + domino)
-    const easyIndices = TIER1_PUZZLES.map((p, i) => ({ i, cells: p.grid.flat().filter(c => c).length }))
-        .filter(p => p.cells <= 3)
-        .map(p => p.i);
-    const idx = easyIndices[Math.floor(Math.random() * easyIndices.length)];
-    tier1Puzzles.push({ ...TIER1_PUZZLES[idx], tier: 1, sourceIndex: idx, placedPieces: [], turnsLeft: TIER1_TURNS, maxTurns: TIER1_TURNS, id: TIER1_PUZZLES[idx].id });
-    tier1Recent.push(idx);
+    for (let attempts = 0; attempts < 100; attempts++) {
+        const targetCells = 2 + Math.floor(Math.random() * 2); // 2-3 cells
+        const grid = generateRandomPuzzle(targetCells);
+        if (!grid) continue;
+        const cells = countCells(grid);
+        if (cells < 2 || cells > 3) continue;
+        
+        const canonical = getCanonical(grid);
+        if (seenPuzzles.has(canonical)) continue;
+        
+        seenPuzzles.add(canonical);
+        puzzleSeq[1]++;
+        
+        const id = `T1-${String(puzzleSeq[1]).padStart(3, '0')}-${hashCode(canonical)}`;
+        const puzzle = { id, grid, points: 0, reward: getReward(cells), tier: 1, placedPieces: [], turnsLeft: TIER1_TURNS, maxTurns: TIER1_TURNS };
+        puzzleHistory.push({ id, grid: JSON.parse(JSON.stringify(grid)), tier: 1, cells, timestamp: Date.now(), status: 'active' });
+        tier1Puzzles.push(puzzle);
+        return;
+    }
+    addNewPuzzle(1); // fallback
 }
 
+// Initialize
 addEasyPuzzle();
 for (let i = 0; i < 3; i++) addNewPuzzle(1);
 for (let i = 0; i < 4; i++) addNewPuzzle(2);
@@ -469,3 +633,22 @@ document.getElementById('take-dot').addEventListener('click', () => {
     decrementAllTurns();
     render();
 });
+
+document.getElementById('toggle-history').addEventListener('click', () => {
+    const hist = document.getElementById('puzzle-history');
+    const btn = document.getElementById('toggle-history');
+    hist.classList.toggle('hidden');
+    btn.textContent = hist.classList.contains('hidden') ? 'Show Puzzle History' : 'Hide Puzzle History';
+    if (!hist.classList.contains('hidden')) renderHistory();
+});
+
+function renderHistory() {
+    const container = document.getElementById('history-list');
+    if (!container || document.getElementById('puzzle-history').classList.contains('hidden')) return;
+    container.innerHTML = puzzleHistory.slice().reverse().map(p => {
+        const gridStr = p.grid.map(r => r.map(c => c ? '█' : '·').join('')).join('<br>');
+        const statusClass = p.status === 'solved' ? 'solved' : p.status === 'expired' ? 'expired' : 'active';
+        const statusIcon = p.status === 'solved' ? '✓' : p.status === 'expired' ? '✗' : '●';
+        return `<div class="history-item ${statusClass}"><strong>${statusIcon} ${p.id}</strong> (${p.cells} cells)<br><code>${gridStr}</code></div>`;
+    }).join('');
+}

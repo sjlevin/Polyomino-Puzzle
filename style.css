@@ -67,3 +67,15 @@ h1, h2 { margin-bottom: 10px; }
 .piece-grid .cell.filled { background: #f90; }
 
 .puzzle.drag-over { outline: 2px solid #4a9; }
+
+
+#toggle-history { margin-top: 15px; padding: 5px 10px; cursor: pointer; }
+#puzzle-history { margin-top: 15px; padding: 10px; background: #2d2d44; border-radius: 8px; max-height: 300px; overflow-y: auto; }
+#puzzle-history.hidden { display: none; }
+#puzzle-history h3 { margin: 0 0 10px 0; }
+#history-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.history-item { background: #3d3d5c; padding: 8px; border-radius: 4px; font-size: 12px; }
+.history-item.solved { border-left: 3px solid #4a4; }
+.history-item.expired { border-left: 3px solid #c44; opacity: 0.7; }
+.history-item.active { border-left: 3px solid #ca2; }
+.history-item code { font-family: monospace; line-height: 1.1; display: block; margin-top: 5px; }
