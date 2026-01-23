@@ -12,10 +12,8 @@ body {
 h1, h2 { margin-bottom: 10px; }
 #puzzles { margin-bottom: 20px; }
 #pieces {
-    position: fixed;
+    position: sticky;
     bottom: 0;
-    left: 0;
-    right: 0;
     background: #1a1a2e;
     padding: 10px 20px;
     border-top: 2px solid #3d3d5c;
@@ -23,7 +21,6 @@ h1, h2 { margin-bottom: 10px; }
     max-height: 40vh;
     overflow-y: auto;
 }
-body { padding-bottom: 150px; }
 #puzzle-row, #piece-supply { display: flex; gap: 15px; flex-wrap: wrap; }
 .puzzle-row { display: flex; gap: 15px; margin-bottom: 15px; min-height: 300px; align-items: flex-start; }
 #pieces h2 { display: flex; align-items: center; gap: 15px; }
@@ -71,7 +68,7 @@ body { padding-bottom: 150px; }
     .puzzle-grid { gap: 1px; padding: 1px; }
     .piece-grid .cell { width: 16px; height: 16px; }
     .puzzle-row { flex-wrap: wrap; height: auto; min-height: auto; gap: 8px; }
-    body { padding: 8px; padding-bottom: 140px; }
+    body { padding: 8px; }
     h1 { font-size: 1.3em; }
     h2 { font-size: 1em; }
     #score { font-size: 12px; }
@@ -81,8 +78,6 @@ body { padding-bottom: 150px; }
     #pieces h2 { font-size: 12px; margin-bottom: 5px; }
     #piece-supply { gap: 6px; }
     .piece { padding: 3px; }
-    #toggle-history { position: fixed; bottom: 8px; right: 8px; z-index: 101; font-size: 11px; }
-    #puzzle-history { margin-bottom: 150px; }
 }
 .puzzle-grid .cell.empty { background: #222; }
 .puzzle-grid .cell.filled { background: #f90; }

@@ -719,17 +719,13 @@ document.getElementById('take-dot').addEventListener('click', () => {
 });
 
 document.getElementById('rotate-btn').addEventListener('click', () => {
-    if (selectedPiece) {
-        currentRotation = (currentRotation + 1) % 4;
-        render();
-    }
+    currentRotation = (currentRotation + 1) % 4;
+    render();
 });
 
 document.getElementById('mirror-btn').addEventListener('click', () => {
-    if (selectedPiece) {
-        currentMirror = !currentMirror;
-        render();
-    }
+    currentMirror = !currentMirror;
+    render();
 });
 
 document.getElementById('toggle-history').addEventListener('click', () => {
