@@ -2,7 +2,11 @@
 
 A browser-based polyomino puzzle game where you fill shapes with pieces to earn points.
 
-## Play
+## Play Online
+
+**https://sjlevin.github.io/Polyomino-Puzzle/**
+
+## Run Locally
 
 Open `index.html` in a browser, or start a local server:
 
