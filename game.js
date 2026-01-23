@@ -269,7 +269,11 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
         });
         el.addEventListener('dragend', () => el.classList.remove('dragging'));
         el.addEventListener('click', () => {
-            currentRotation = (currentRotation + 1) % 4;
+            if (selectedPiece && selectedPiece.type === type && selectedPiece.index === index) {
+                currentRotation = (currentRotation + 1) % 4;
+            } else {
+                selectedPiece = { type, index };
+            }
             render();
         });
         el.addEventListener('contextmenu', e => {
@@ -278,24 +282,17 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
             render();
         });
         
-        // Touch support - tap to select/rotate, long-press to mirror
+        // Touch support - long-press to mirror
         el.addEventListener('touchstart', e => {
             touchStartTime = Date.now();
         }, { passive: true });
         el.addEventListener('touchend', e => {
             e.preventDefault();
-            const duration = Date.now() - touchStartTime;
-            if (duration > 400) {
-                // Long press = mirror
+            if (Date.now() - touchStartTime > 400) {
                 currentMirror = !currentMirror;
-            } else if (selectedPiece && selectedPiece.type === type && selectedPiece.index === index) {
-                // Tap selected piece = rotate
-                currentRotation = (currentRotation + 1) % 4;
-            } else {
-                // Tap unselected piece = select it
-                selectedPiece = { type, index };
+                render();
             }
-            render();
+            // Click handler handles select/rotate
         });
     }
     
@@ -428,21 +425,21 @@ function createPuzzleElement(puzzle, index, tier) {
                 }
             });
             
-            // Touch support - tap to place selected piece
-            cellEl.addEventListener('touchend', e => {
+            // Click/tap to place selected piece
+            const handlePlace = e => {
                 e.preventDefault();
                 if (selectedPiece) {
                     draggedPiece = selectedPiece.type;
                     draggedIndex = selectedPiece.index;
-                    draggedFromPuzzle = null;
+                    draggedFromPuzzle = selectedPiece.fromPuzzle || null;
                     const shape = getRotatedShape(draggedPiece, currentRotation, currentMirror);
-                    const best = findBestPlacement(puzzle, shape, r, c);
+                    const best = findBestPlacement(puzzle, shape, r, c, draggedFromPuzzle?.placedIndex);
                     if (best) {
                         tryPlacePieceAt(tier, index, best.row, best.col);
                         selectedPiece = null;
                     }
                 } else if (state === 'filled') {
-                    // Tap placed piece to pick it up
+                    // Click placed piece to pick it up
                     const placedIdx = puzzle.placedPieces.findIndex(placed => {
                         const shape = getRotatedShape(placed.type, placed.rotation, placed.mirror);
                         return shape.some((row, pr) => row.some((cell, pc) => 
@@ -457,7 +454,9 @@ function createPuzzleElement(puzzle, index, tier) {
                         render();
                     }
                 }
-            });
+            };
+            cellEl.addEventListener('click', handlePlace);
+            cellEl.addEventListener('touchend', handlePlace);
             
             grid.appendChild(cellEl);
         });
