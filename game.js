@@ -465,7 +465,7 @@ function createPuzzleElement(puzzle, index, tier) {
     
     const info = document.createElement('div');
     info.className = 'puzzle-info';
-    info.innerHTML = puzzle.reward ? '' : `${puzzle.points} pts`;
+    info.innerHTML = puzzle.reward ? '<span class="reward-label">Reward:</span>' : `${puzzle.points} pts`;
     
     // Add reward piece preview for tier 1
     if (puzzle.reward) {
@@ -674,10 +674,6 @@ function render() {
     document.getElementById('t1-expired').textContent = stats.tier1Expired;
     document.getElementById('t2-solved').textContent = stats.tier2Solved;
     document.getElementById('t2-expired').textContent = stats.tier2Expired;
-    
-    document.getElementById('selection-hint').textContent = selectedPiece 
-        ? `${selectedPiece.type} selected` 
-        : 'Select a piece';
     
     renderHistory();
 }

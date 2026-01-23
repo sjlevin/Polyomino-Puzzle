@@ -23,11 +23,9 @@ h1, h2 { margin-bottom: 10px; }
 }
 #puzzle-row, #piece-supply { display: flex; gap: 15px; flex-wrap: wrap; }
 .puzzle-row { display: flex; gap: 15px; margin-bottom: 15px; min-height: 300px; align-items: flex-start; }
-#pieces h2 { display: flex; align-items: center; gap: 15px; }
-#piece-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
-#piece-controls button { padding: 6px 12px; cursor: pointer; }
-#selection-hint { font-size: 12px; color: #888; }
-#take-dot { font-size: 12px; padding: 8px 12px; cursor: pointer; touch-action: manipulation; }
+#pieces h2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#pieces h2 button { padding: 6px 12px; cursor: pointer; }
+#take-dot { font-size: 12px; touch-action: manipulation; }
 #score { font-size: 16px; line-height: 1.6; }
 #score span { font-weight: bold; }
 
@@ -47,7 +45,8 @@ h1, h2 { margin-bottom: 10px; }
 .timer { display: block; margin: 0 auto; }
 
 .reward-preview { background: transparent; padding: 2px; cursor: default; }
-.reward-preview .piece-grid .cell.filled { background: #666; }
+.reward-preview .piece-grid .cell.filled { background: #4a9; }
+.reward-label { font-size: 10px; color: #4a9; margin-right: 5px; }
 .puzzle-grid {
     display: grid;
     gap: 2px;
