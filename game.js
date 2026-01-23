@@ -347,8 +347,8 @@ function mirrorShape(shape) {
 
 function getRotatedShape(type, rotation, mirror = false) {
     let shape = PIECES[type].shape;
-    if (mirror) shape = mirrorShape(shape);
     for (let i = 0; i < rotation % 4; i++) shape = rotateShape(shape);
+    if (mirror) shape = mirrorShape(shape);
     return shape;
 }
 
