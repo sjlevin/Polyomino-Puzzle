@@ -15,6 +15,8 @@ const REWARDS = ['domino', 'tromino_i', 'tromino_l', 'tetro_i', 'tetro_o', 'tetr
 
 // SAVE_VERSION: Increment when changing saved state structure. See SAVE/LOAD SYSTEM docs below.
 const SAVE_VERSION = 1;
+const STORAGE_KEY = 'polyomino-save';
+const CONSENT_KEY = 'polyomino-storage-consent';
 
 let playerPieces = ['dot', 'domino'];
 let tier1Puzzles = [];
@@ -61,7 +63,16 @@ let touchStartTime = 0;
  * ============================================================================
  */
 
+function hasStorageConsent() {
+    try {
+        return localStorage.getItem(CONSENT_KEY) === 'yes';
+    } catch (e) {
+        return false;
+    }
+}
+
 function saveGame() {
+    if (!hasStorageConsent()) return;
     const state = {
         version: SAVE_VERSION,
         playerPieces,
@@ -75,15 +86,16 @@ function saveGame() {
         stats
     };
     try {
-        localStorage.setItem('polyomino-save', JSON.stringify(state));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
         console.warn('Failed to save:', e);
     }
 }
 
 function loadGame() {
+    if (!hasStorageConsent()) return false;
     try {
-        const saved = localStorage.getItem('polyomino-save');
+        const saved = localStorage.getItem(STORAGE_KEY);
         if (!saved) return false;
         const state = JSON.parse(saved);
         
@@ -112,7 +124,7 @@ function loadGame() {
 
 function resetGame() {
     if (!confirm('Reset game? All progress will be lost.')) return;
-    localStorage.removeItem('polyomino-save');
+    localStorage.removeItem(STORAGE_KEY);
     playerPieces = ['dot', 'domino'];
     tier1Puzzles = [];
     tier2Puzzles = [];
@@ -129,6 +141,25 @@ function resetGame() {
     for (let i = 0; i < 3; i++) addNewPuzzle(1);
     for (let i = 0; i < 4; i++) addNewPuzzle(2);
     render();
+}
+
+function showStorageConsent() {
+    const banner = document.getElementById('storage-consent');
+    if (banner && !hasStorageConsent()) {
+        banner.classList.remove('hidden');
+    }
+}
+
+function acceptStorage() {
+    try {
+        localStorage.setItem(CONSENT_KEY, 'yes');
+    } catch (e) {}
+    document.getElementById('storage-consent').classList.add('hidden');
+    saveGame();
+}
+
+function declineStorage() {
+    document.getElementById('storage-consent').classList.add('hidden');
 }
 
 // Puzzle generation
@@ -811,6 +842,7 @@ if (!loadGame()) {
     for (let i = 0; i < 4; i++) addNewPuzzle(2);
 }
 render();
+showStorageConsent();
 
 document.getElementById('take-dot').addEventListener('click', () => {
     playerPieces.push('dot');
@@ -819,6 +851,8 @@ document.getElementById('take-dot').addEventListener('click', () => {
 });
 
 document.getElementById('reset-game').addEventListener('click', resetGame);
+document.getElementById('accept-storage').addEventListener('click', acceptStorage);
+document.getElementById('decline-storage').addEventListener('click', declineStorage);
 
 document.getElementById('rotate-btn').addEventListener('click', () => {
     currentRotation = (currentRotation + 1) % 4;
