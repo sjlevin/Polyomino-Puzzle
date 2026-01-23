@@ -496,10 +496,11 @@ function createPuzzleElement(puzzle, index, tier) {
             cellEl.dataset.col = c;
             
             // Make filled cells draggable to move pieces
-            if (state === 'filled') {
+            if (state === 'filled' || state === 'filled selected-placed') {
                 cellEl.draggable = true;
                 cellEl.style.cursor = 'grab';
                 cellEl.addEventListener('dragstart', e => {
+                    selectedPiece = null; // Clear selection when dragging
                     // Find which placed piece this cell belongs to
                     const placedIdx = puzzle.placedPieces.findIndex(placed => {
                         const shape = getRotatedShape(placed.type, placed.rotation, placed.mirror);
@@ -807,6 +808,14 @@ function render() {
     document.getElementById('t2-solved').textContent = stats.tier2Solved;
     document.getElementById('t2-expired').textContent = stats.tier2Expired;
     
+    // Show/hide return button based on selection
+    const returnBtn = document.getElementById('return-btn');
+    if (selectedPiece?.fromPuzzle) {
+        returnBtn.classList.remove('hidden');
+    } else {
+        returnBtn.classList.add('hidden');
+    }
+    
     renderHistory();
     saveGame();
 }
@@ -864,19 +873,26 @@ document.getElementById('mirror-btn').addEventListener('click', () => {
     render();
 });
 
+function returnSelectedPiece() {
+    if (!selectedPiece?.fromPuzzle) return;
+    const { tier, puzzleIndex, placedIndex } = selectedPiece.fromPuzzle;
+    const puzzleArray = tier === 1 ? tier1Puzzles : tier2Puzzles;
+    const puzzle = puzzleArray[puzzleIndex];
+    if (puzzle && puzzle.placedPieces[placedIndex]) {
+        const placed = puzzle.placedPieces[placedIndex];
+        playerPieces.push(placed.type);
+        puzzle.placedPieces.splice(placedIndex, 1);
+        selectedPiece = null;
+        render();
+    }
+}
+
+document.getElementById('return-btn').addEventListener('click', returnSelectedPiece);
+
 // Click piece supply area to return selected piece from puzzle
 document.getElementById('piece-supply').addEventListener('click', e => {
     if (e.target.id === 'piece-supply' && selectedPiece?.fromPuzzle) {
-        const { tier, puzzleIndex, placedIndex } = selectedPiece.fromPuzzle;
-        const puzzleArray = tier === 1 ? tier1Puzzles : tier2Puzzles;
-        const puzzle = puzzleArray[puzzleIndex];
-        if (puzzle && puzzle.placedPieces[placedIndex]) {
-            const placed = puzzle.placedPieces[placedIndex];
-            playerPieces.push(placed.type);
-            puzzle.placedPieces.splice(placedIndex, 1);
-            selectedPiece = null;
-            render();
-        }
+        returnSelectedPiece();
     }
 });
 

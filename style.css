@@ -40,6 +40,8 @@ h1, h2 { margin-bottom: 10px; }
 #pieces h2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #pieces h2 button { padding: 6px 12px; cursor: pointer; }
 #reset-game { background: #633; color: #faa; }
+#return-btn { background: #446; color: #aaf; }
+#return-btn.hidden { display: none; }
 #take-dot { font-size: 12px; touch-action: manipulation; }
 #score { font-size: 16px; line-height: 1.6; }
 #score span { font-weight: bold; }
