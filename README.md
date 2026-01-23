@@ -60,6 +60,11 @@ Timer colors:
 - Track your efficiency with Points/Turn ratio
 - Stats show solved vs expired puzzles per tier
 
+### Save System
+- Game automatically saves to browser localStorage after every action
+- Progress persists when you close and reopen the page
+- Click "Reset Game" to start fresh (with confirmation)
+
 ## Project Structure
 
 ```
@@ -118,3 +123,22 @@ In `game.js`:
 - `TIER2_TURNS = 12` - Timer for tier 2 puzzles
 - Starting pieces: 1 dot, 1 domino
 - 4 puzzles displayed per tier
+
+## Save System (Developer Notes)
+
+Game state is stored in `localStorage` under key `polyomino-save`.
+
+**Saved state includes:**
+- `playerPieces` - Array of piece type strings
+- `tier1Puzzles`, `tier2Puzzles` - Active puzzles with placed pieces
+- `seenPuzzles` - Set of canonical forms (prevents duplicates)
+- `puzzleHistory` - Last 200 generated puzzles
+- `puzzleSeq` - Sequence numbers for puzzle IDs
+- `points`, `totalTurns`, `stats` - Score tracking
+
+**IMPORTANT: When modifying saved state structure:**
+1. Increment `SAVE_VERSION` constant
+2. Add migration logic in `loadGame()` to convert old saves
+3. Without migration, players with old saves will lose progress!
+
+See the `SAVE/LOAD SYSTEM` comment block in `game.js` for migration examples.

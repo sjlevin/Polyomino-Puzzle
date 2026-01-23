@@ -12,6 +12,8 @@ const PIECES = {
 };
 
 const REWARDS = ['domino', 'tromino_i', 'tromino_l', 'tetro_i', 'tetro_o', 'tetro_t', 'tetro_s', 'tetro_l'];
+
+// SAVE_VERSION: Increment when changing saved state structure. See SAVE/LOAD SYSTEM docs below.
 const SAVE_VERSION = 1;
 
 let playerPieces = ['dot', 'domino'];
@@ -34,7 +36,31 @@ let currentMirror = false;
 let selectedPiece = null;
 let touchStartTime = 0;
 
-// Save/Load
+/*
+ * ============================================================================
+ * SAVE/LOAD SYSTEM
+ * ============================================================================
+ * Game state is automatically saved to localStorage after every action.
+ * 
+ * IMPORTANT FOR FUTURE CHANGES:
+ * If you modify any of the saved state variables (playerPieces, tier1Puzzles,
+ * tier2Puzzles, puzzleHistory, puzzleSeq, points, totalTurns, stats), you MUST:
+ * 
+ * 1. Increment SAVE_VERSION at the top of this file
+ * 2. Add migration logic in loadGame() to convert old saves to new format
+ * 
+ * Example migration:
+ *   if (state.version === 1) {
+ *       state.newField = defaultValue;  // Add new field with default
+ *       delete state.oldField;          // Remove deprecated field
+ *       state.version = 2;
+ *   }
+ *   if (state.version === 2) { ... }    // Chain migrations
+ * 
+ * Without migration, old saves will be discarded and players lose progress!
+ * ============================================================================
+ */
+
 function saveGame() {
     const state = {
         version: SAVE_VERSION,
@@ -60,6 +86,10 @@ function loadGame() {
         const saved = localStorage.getItem('polyomino-save');
         if (!saved) return false;
         const state = JSON.parse(saved);
+        
+        // Migration: Add migration logic here when SAVE_VERSION changes
+        // if (state.version === 1) { /* migrate v1 -> v2 */ state.version = 2; }
+        
         if (state.version !== SAVE_VERSION) {
             console.warn('Save version mismatch, starting fresh');
             return false;
