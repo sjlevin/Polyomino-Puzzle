@@ -21,8 +21,8 @@ function mirrorShape(shape) {
 
 function getRotatedShape(shape, rotation, mirror = false) {
     let s = shape;
-    if (mirror) s = mirrorShape(s);
     for (let i = 0; i < rotation % 4; i++) s = rotateShape(s);
+    if (mirror) s = mirrorShape(s);
     return s;
 }
 
@@ -126,11 +126,41 @@ test('getRotatedShape: rotation 1 rotates 90°', () => {
     assert.deepStrictEqual(getRotatedShape(shape, 1), [[1],[1],[1],[1]]);
 });
 
-test('getRotatedShape: mirror then rotate', () => {
-    const shape = [[1,0],[1,1]];
-    const result = getRotatedShape(shape, 1, true);
-    // Mirror: [[0,1],[1,1]], then rotate 90° CW: [[1,0],[1,1]]
-    assert.deepStrictEqual(result, [[1,0],[1,1]]);
+test('getRotatedShape: mirror after rotate (T-piece)', () => {
+    // T-piece rotated 90° then mirrored should flip horizontally
+    const tetro_t = [[1,1,1],[0,1,0]];
+    const rot1 = getRotatedShape(tetro_t, 1, false);
+    assert.deepStrictEqual(rot1, [[0,1],[1,1],[0,1]]);
+    const rot1_mirror = getRotatedShape(tetro_t, 1, true);
+    assert.deepStrictEqual(rot1_mirror, [[1,0],[1,1],[1,0]]);
+});
+
+test('getRotatedShape: S-piece mirror produces Z-piece', () => {
+    const tetro_s = [[0,1,1],[1,1,0]];
+    const mirrored = getRotatedShape(tetro_s, 0, true);
+    assert.deepStrictEqual(mirrored, [[1,1,0],[0,1,1]]);
+});
+
+test('getRotatedShape: L-piece all rotations', () => {
+    const tetro_l = [[1,0],[1,0],[1,1]];
+    assert.deepStrictEqual(getRotatedShape(tetro_l, 0), [[1,0],[1,0],[1,1]]);
+    assert.deepStrictEqual(getRotatedShape(tetro_l, 1), [[1,1,1],[1,0,0]]);
+    assert.deepStrictEqual(getRotatedShape(tetro_l, 2), [[1,1],[0,1],[0,1]]);
+    assert.deepStrictEqual(getRotatedShape(tetro_l, 3), [[0,0,1],[1,1,1]]);
+});
+
+test('getRotatedShape: L-piece mirrored all rotations', () => {
+    const tetro_l = [[1,0],[1,0],[1,1]];
+    assert.deepStrictEqual(getRotatedShape(tetro_l, 0, true), [[0,1],[0,1],[1,1]]);
+    assert.deepStrictEqual(getRotatedShape(tetro_l, 1, true), [[1,1,1],[0,0,1]]);
+    assert.deepStrictEqual(getRotatedShape(tetro_l, 2, true), [[1,1],[1,0],[1,0]]);
+    assert.deepStrictEqual(getRotatedShape(tetro_l, 3, true), [[1,0,0],[1,1,1]]);
+});
+
+test('getRotatedShape: rotation 4 same as 0', () => {
+    const shape = [[1,1,0],[0,1,1]];
+    assert.deepStrictEqual(getRotatedShape(shape, 4), getRotatedShape(shape, 0));
+    assert.deepStrictEqual(getRotatedShape(shape, 4, true), getRotatedShape(shape, 0, true));
 });
 
 console.log('\n=== Placement Tests ===\n');
