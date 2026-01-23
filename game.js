@@ -231,10 +231,10 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
     const el = document.createElement('div');
     el.className = 'piece';
     
-    // Highlight selected piece for touch
-    if (isSupply && selectedPiece && selectedPiece.type === type && selectedPiece.index === index) {
-        el.classList.add('selected');
-    }
+    // Highlight selected piece
+    const isSelected = selectedPiece && selectedPiece.type === type && 
+        (isSupply ? selectedPiece.index === index && !selectedPiece.fromPuzzle : false);
+    if (isSelected) el.classList.add('selected');
     
     // Debug tooltip
     const piece = PIECES[type];
@@ -245,8 +245,8 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
         el.draggable = true;
         el.dataset.type = type;
         el.dataset.index = index;
-        el.style.width = (maxDim * 21) + 'px';
-        el.style.height = (maxDim * 21) + 'px';
+        el.style.width = (maxDim * 20 + 10) + 'px';
+        el.style.height = (maxDim * 20 + 10) + 'px';
     }
     
     const grid = document.createElement('div');
@@ -345,12 +345,15 @@ function createPuzzleElement(puzzle, index, tier) {
     
     // Build display grid with placed pieces
     const displayGrid = puzzle.grid.map(row => row.map(c => c ? 'empty' : 'solid'));
-    puzzle.placedPieces.forEach(placed => {
+    puzzle.placedPieces.forEach((placed, placedIdx) => {
         const shape = getRotatedShape(placed.type, placed.rotation, placed.mirror);
+        const isSelected = selectedPiece?.fromPuzzle?.tier === tier && 
+            selectedPiece?.fromPuzzle?.puzzleIndex === index && 
+            selectedPiece?.fromPuzzle?.placedIndex === placedIdx;
         shape.forEach((row, r) => {
             row.forEach((cell, c) => {
                 if (cell && displayGrid[placed.row + r] && displayGrid[placed.row + r][placed.col + c] !== undefined) {
-                    displayGrid[placed.row + r][placed.col + c] = 'filled';
+                    displayGrid[placed.row + r][placed.col + c] = isSelected ? 'filled selected-placed' : 'filled';
                 }
             });
         });
@@ -722,6 +725,22 @@ document.getElementById('rotate-btn').addEventListener('click', () => {
 document.getElementById('mirror-btn').addEventListener('click', () => {
     currentMirror = !currentMirror;
     render();
+});
+
+// Click piece supply area to return selected piece from puzzle
+document.getElementById('piece-supply').addEventListener('click', e => {
+    if (e.target.id === 'piece-supply' && selectedPiece?.fromPuzzle) {
+        const { tier, puzzleIndex, placedIndex } = selectedPiece.fromPuzzle;
+        const puzzleArray = tier === 1 ? tier1Puzzles : tier2Puzzles;
+        const puzzle = puzzleArray[puzzleIndex];
+        if (puzzle && puzzle.placedPieces[placedIndex]) {
+            const placed = puzzle.placedPieces[placedIndex];
+            playerPieces.push(placed.type);
+            puzzle.placedPieces.splice(placedIndex, 1);
+            selectedPiece = null;
+            render();
+        }
+    }
 });
 
 document.getElementById('toggle-history').addEventListener('click', () => {

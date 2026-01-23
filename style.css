@@ -79,6 +79,7 @@ h1, h2 { margin-bottom: 10px; }
 }
 .puzzle-grid .cell.empty { background: #222; }
 .puzzle-grid .cell.filled { background: #f90; }
+.puzzle-grid .cell.selected-placed { outline: 2px solid #4af; outline-offset: -2px; }
 .puzzle-grid .cell.solid { background: #666; }
 .puzzle-grid .cell.preview { background: rgba(255, 153, 0, 0.5); }
 .puzzle-grid .cell.preview-invalid { background: rgba(255, 0, 0, 0.4); }
