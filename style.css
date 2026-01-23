@@ -14,8 +14,9 @@ h1, h2 { margin-bottom: 10px; }
 #puzzle-row, #piece-supply { display: flex; gap: 15px; flex-wrap: wrap; }
 .puzzle-row { display: flex; gap: 15px; margin-bottom: 15px; min-height: 300px; align-items: flex-start; }
 #pieces h2 { display: flex; align-items: center; gap: 15px; }
-#touch-hint { font-size: 12px; color: #888; margin-bottom: 10px; }
-@media (pointer: fine) { #touch-hint { display: none; } }
+#piece-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+#piece-controls button { padding: 6px 12px; cursor: pointer; }
+#selection-hint { font-size: 12px; color: #888; }
 #take-dot { font-size: 12px; padding: 8px 12px; cursor: pointer; touch-action: manipulation; }
 #score { font-size: 16px; line-height: 1.6; }
 #score span { font-weight: bold; }
@@ -57,7 +58,7 @@ h1, h2 { margin-bottom: 10px; }
     .puzzle-grid { gap: 1px; padding: 1px; }
     .piece-grid .cell { width: 16px; height: 16px; }
     .puzzle-row { flex-wrap: wrap; height: auto; min-height: auto; gap: 8px; }
-    body { padding: 8px; padding-bottom: 120px; }
+    body { padding: 8px; padding-bottom: 140px; }
     h1 { font-size: 1.3em; }
     h2 { font-size: 1em; }
     #score { font-size: 12px; }
@@ -72,11 +73,14 @@ h1, h2 { margin-bottom: 10px; }
         padding: 8px;
         border-top: 2px solid #3d3d5c;
         z-index: 100;
+        max-height: 40vh;
+        overflow-y: auto;
     }
     #pieces h2 { font-size: 12px; margin-bottom: 5px; }
     #piece-supply { gap: 6px; }
     .piece { padding: 3px; }
-    #touch-hint { font-size: 10px; }
+    #toggle-history { position: fixed; bottom: 8px; right: 8px; z-index: 101; font-size: 11px; }
+    #puzzle-history { margin-bottom: 150px; }
 }
 .puzzle-grid .cell.empty { background: #222; }
 .puzzle-grid .cell.filled { background: #f90; }

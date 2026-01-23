@@ -344,7 +344,7 @@ function createPuzzleElement(puzzle, index, tier) {
     
     const grid = document.createElement('div');
     grid.className = 'puzzle-grid';
-    grid.style.gridTemplateColumns = `repeat(${puzzle.grid[0].length}, 30px)`;
+    grid.style.gridTemplateColumns = `repeat(${puzzle.grid[0].length}, 1fr)`;
     
     // Build display grid with placed pieces
     const displayGrid = puzzle.grid.map(row => row.map(c => c ? 'empty' : 'solid'));
@@ -674,6 +674,11 @@ function render() {
     document.getElementById('t1-expired').textContent = stats.tier1Expired;
     document.getElementById('t2-solved').textContent = stats.tier2Solved;
     document.getElementById('t2-expired').textContent = stats.tier2Expired;
+    
+    document.getElementById('selection-hint').textContent = selectedPiece 
+        ? `${selectedPiece.type} selected` 
+        : 'Select a piece';
+    
     renderHistory();
 }
 
@@ -711,6 +716,20 @@ document.getElementById('take-dot').addEventListener('click', () => {
     playerPieces.push('dot');
     decrementAllTurns();
     render();
+});
+
+document.getElementById('rotate-btn').addEventListener('click', () => {
+    if (selectedPiece) {
+        currentRotation = (currentRotation + 1) % 4;
+        render();
+    }
+});
+
+document.getElementById('mirror-btn').addEventListener('click', () => {
+    if (selectedPiece) {
+        currentMirror = !currentMirror;
+        render();
+    }
 });
 
 document.getElementById('toggle-history').addEventListener('click', () => {
