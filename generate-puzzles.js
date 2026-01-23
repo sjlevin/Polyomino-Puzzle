@@ -76,6 +76,43 @@ function countCells(grid) {
     return grid.flat().filter(c => c).length;
 }
 
+function isInteresting(grid) {
+    const cells = countCells(grid);
+    const rows = grid.length;
+    const cols = grid[0].length;
+    const boundingArea = rows * cols;
+    const fillRatio = cells / boundingArea;
+    const emptyInBounds = boundingArea - cells;
+    
+    // Reject perfect rectangles
+    if (cells === boundingArea && rows > 1 && cols > 1) return false;
+    
+    // Reject rectangles with just 1-2 cells missing
+    if (emptyInBounds <= 2 && rows > 2 && cols > 2) return false;
+    
+    // Reject if too rectangular (>75% fill) for chunky shapes
+    if (fillRatio > 0.75 && Math.min(rows, cols) > 2) return false;
+    
+    // Count internal holes (empty cells surrounded by filled)
+    let holes = 0;
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            if (grid[r][c]) continue;
+            // Check if this empty cell is "inside" the shape
+            const neighbors = [[0,1],[0,-1],[1,0],[-1,0]].filter(([dr,dc]) => {
+                const nr = r + dr, nc = c + dc;
+                return nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc];
+            });
+            if (neighbors.length >= 3) holes++;
+        }
+    }
+    
+    // Larger puzzles should have holes or low fill ratio
+    if (cells >= 8 && fillRatio > 0.65 && holes === 0) return false;
+    
+    return true;
+}
+
 function generateUniquePuzzles(minCells, maxCells, count, seen) {
     const puzzles = [];
     let attempts = 0;
@@ -87,6 +124,7 @@ function generateUniquePuzzles(minCells, maxCells, count, seen) {
         
         const cells = countCells(grid);
         if (cells < minCells || cells > maxCells) continue;
+        if (!isInteresting(grid)) continue;
         
         const canonical = getCanonical(grid);
         if (seen.has(canonical)) continue;
