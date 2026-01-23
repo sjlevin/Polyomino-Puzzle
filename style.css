@@ -25,6 +25,7 @@ h1, h2 { margin-bottom: 10px; }
 .puzzle-row { display: flex; gap: 15px; margin-bottom: 15px; min-height: 300px; align-items: flex-start; }
 #pieces h2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #pieces h2 button { padding: 6px 12px; cursor: pointer; }
+#reset-game { background: #633; color: #faa; }
 #take-dot { font-size: 12px; touch-action: manipulation; }
 #score { font-size: 16px; line-height: 1.6; }
 #score span { font-weight: bold; }

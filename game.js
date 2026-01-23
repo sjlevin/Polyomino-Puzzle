@@ -12,11 +12,12 @@ const PIECES = {
 };
 
 const REWARDS = ['domino', 'tromino_i', 'tromino_l', 'tetro_i', 'tetro_o', 'tetro_t', 'tetro_s', 'tetro_l'];
+const SAVE_VERSION = 1;
 
 let playerPieces = ['dot', 'domino'];
 let tier1Puzzles = [];
 let tier2Puzzles = [];
-let seenPuzzles = new Set(); // canonical forms of all generated puzzles
+let seenPuzzles = new Set();
 let puzzleHistory = [];
 let puzzleSeq = { 1: 0, 2: 0 };
 
@@ -30,8 +31,75 @@ let draggedIndex = null;
 let draggedFromPuzzle = null;
 let currentRotation = 0;
 let currentMirror = false;
-let selectedPiece = null; // { type, index, fromPuzzle? } for touch-based selection
+let selectedPiece = null;
 let touchStartTime = 0;
+
+// Save/Load
+function saveGame() {
+    const state = {
+        version: SAVE_VERSION,
+        playerPieces,
+        tier1Puzzles,
+        tier2Puzzles,
+        seenPuzzles: [...seenPuzzles],
+        puzzleHistory: puzzleHistory.slice(-200), // Cap at 200 entries
+        puzzleSeq,
+        points,
+        totalTurns,
+        stats
+    };
+    try {
+        localStorage.setItem('polyomino-save', JSON.stringify(state));
+    } catch (e) {
+        console.warn('Failed to save:', e);
+    }
+}
+
+function loadGame() {
+    try {
+        const saved = localStorage.getItem('polyomino-save');
+        if (!saved) return false;
+        const state = JSON.parse(saved);
+        if (state.version !== SAVE_VERSION) {
+            console.warn('Save version mismatch, starting fresh');
+            return false;
+        }
+        playerPieces = state.playerPieces;
+        tier1Puzzles = state.tier1Puzzles;
+        tier2Puzzles = state.tier2Puzzles;
+        seenPuzzles = new Set(state.seenPuzzles);
+        puzzleHistory = state.puzzleHistory;
+        puzzleSeq = state.puzzleSeq;
+        points = state.points;
+        totalTurns = state.totalTurns;
+        stats = state.stats;
+        return true;
+    } catch (e) {
+        console.warn('Failed to load save:', e);
+        return false;
+    }
+}
+
+function resetGame() {
+    if (!confirm('Reset game? All progress will be lost.')) return;
+    localStorage.removeItem('polyomino-save');
+    playerPieces = ['dot', 'domino'];
+    tier1Puzzles = [];
+    tier2Puzzles = [];
+    seenPuzzles = new Set();
+    puzzleHistory = [];
+    puzzleSeq = { 1: 0, 2: 0 };
+    points = 0;
+    totalTurns = 0;
+    stats = { tier1Solved: 0, tier1Expired: 0, tier2Solved: 0, tier2Expired: 0 };
+    selectedPiece = null;
+    currentRotation = 0;
+    currentMirror = false;
+    addEasyPuzzle();
+    for (let i = 0; i < 3; i++) addNewPuzzle(1);
+    for (let i = 0; i < 4; i++) addNewPuzzle(2);
+    render();
+}
 
 // Puzzle generation
 function generateRandomPuzzle(targetCells) {
@@ -679,6 +747,7 @@ function render() {
     document.getElementById('t2-expired').textContent = stats.tier2Expired;
     
     renderHistory();
+    saveGame();
 }
 
 // Generate easy puzzle (<=3 cells) for starting hand
@@ -706,9 +775,11 @@ function addEasyPuzzle() {
 }
 
 // Initialize
-addEasyPuzzle();
-for (let i = 0; i < 3; i++) addNewPuzzle(1);
-for (let i = 0; i < 4; i++) addNewPuzzle(2);
+if (!loadGame()) {
+    addEasyPuzzle();
+    for (let i = 0; i < 3; i++) addNewPuzzle(1);
+    for (let i = 0; i < 4; i++) addNewPuzzle(2);
+}
 render();
 
 document.getElementById('take-dot').addEventListener('click', () => {
@@ -716,6 +787,8 @@ document.getElementById('take-dot').addEventListener('click', () => {
     decrementAllTurns();
     render();
 });
+
+document.getElementById('reset-game').addEventListener('click', resetGame);
 
 document.getElementById('rotate-btn').addEventListener('click', () => {
     currentRotation = (currentRotation + 1) % 4;
