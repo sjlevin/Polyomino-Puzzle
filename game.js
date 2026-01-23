@@ -30,10 +30,8 @@ let draggedIndex = null;
 let draggedFromPuzzle = null;
 let currentRotation = 0;
 let currentMirror = false;
-let selectedPiece = null; // { type, index } for touch-based selection
+let selectedPiece = null; // { type, index, fromPuzzle? } for touch-based selection
 let touchStartTime = 0;
-let touchDragEl = null; // Ghost element for touch dragging
-let touchCurrentTarget = null; // Current puzzle cell under finger
 
 // Puzzle generation
 function generateRandomPuzzle(targetCells) {
@@ -280,25 +278,11 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
             render();
         });
         
-        // Touch support
-        let touchMoved = false;
+        // Touch support - tap to select/rotate, long-press to mirror
         el.addEventListener('touchstart', e => {
             touchStartTime = Date.now();
-            touchMoved = false;
-        }, { passive: true });
-        el.addEventListener('touchmove', e => {
-            if (!touchMoved && Date.now() - touchStartTime > 150) {
-                touchMoved = true;
-                startTouchDrag(type, index);
-                const touch = e.touches[0];
-                if (touchDragEl) {
-                    touchDragEl.style.left = (touch.clientX - 30) + 'px';
-                    touchDragEl.style.top = (touch.clientY - 30) + 'px';
-                }
-            }
         }, { passive: true });
         el.addEventListener('touchend', e => {
-            if (touchMoved) return; // Handled by drag
             e.preventDefault();
             const duration = Date.now() - touchStartTime;
             if (duration > 400) {
@@ -404,34 +388,23 @@ function createPuzzleElement(puzzle, index, tier) {
                     }
                 });
                 
-                // Touch drag for placed pieces
-                let filledTouchMoved = false;
-                cellEl.addEventListener('touchstart', e => {
-                    touchStartTime = Date.now();
-                    filledTouchMoved = false;
-                }, { passive: true });
-                cellEl.addEventListener('touchmove', e => {
-                    if (!filledTouchMoved && Date.now() - touchStartTime > 150) {
-                        filledTouchMoved = true;
-                        const placedIdx = puzzle.placedPieces.findIndex(placed => {
-                            const shape = getRotatedShape(placed.type, placed.rotation, placed.mirror);
-                            return shape.some((row, pr) => row.some((cell, pc) => 
-                                cell && placed.row + pr === r && placed.col + pc === c
-                            ));
-                        });
-                        if (placedIdx >= 0) {
-                            const placed = puzzle.placedPieces[placedIdx];
-                            currentRotation = placed.rotation;
-                            currentMirror = placed.mirror;
-                            startTouchDrag(placed.type, null, { tier, puzzleIndex: index, placedIndex: placedIdx });
-                            const touch = e.touches[0];
-                            if (touchDragEl) {
-                                touchDragEl.style.left = (touch.clientX - 30) + 'px';
-                                touchDragEl.style.top = (touch.clientY - 30) + 'px';
-                            }
-                        }
+                // Touch drag for placed pieces - just use tap to pick up
+                cellEl.addEventListener('touchend', e => {
+                    e.preventDefault();
+                    const placedIdx = puzzle.placedPieces.findIndex(placed => {
+                        const shape = getRotatedShape(placed.type, placed.rotation, placed.mirror);
+                        return shape.some((row, pr) => row.some((cell, pc) => 
+                            cell && placed.row + pr === r && placed.col + pc === c
+                        ));
+                    });
+                    if (placedIdx >= 0) {
+                        const placed = puzzle.placedPieces[placedIdx];
+                        selectedPiece = { type: placed.type, index: null, fromPuzzle: { tier, puzzleIndex: index, placedIndex: placedIdx } };
+                        currentRotation = placed.rotation;
+                        currentMirror = placed.mirror;
+                        render();
                     }
-                }, { passive: true });
+                });
             }
             
             // Each cell is a drop target
@@ -702,95 +675,6 @@ function render() {
     document.getElementById('t2-solved').textContent = stats.tier2Solved;
     document.getElementById('t2-expired').textContent = stats.tier2Expired;
     renderHistory();
-}
-
-// Touch drag support
-function createTouchGhost(type, rotation, mirror) {
-    const ghost = document.createElement('div');
-    ghost.className = 'touch-ghost';
-    ghost.id = 'touch-ghost';
-    const shape = getRotatedShape(type, rotation, mirror);
-    const grid = document.createElement('div');
-    grid.className = 'piece-grid';
-    grid.style.gridTemplateColumns = `repeat(${shape[0].length}, 20px)`;
-    shape.flat().forEach(cell => {
-        const cellEl = document.createElement('div');
-        cellEl.className = 'cell' + (cell ? ' filled' : '');
-        grid.appendChild(cellEl);
-    });
-    ghost.appendChild(grid);
-    document.body.appendChild(ghost);
-    return ghost;
-}
-
-function handleTouchMove(e) {
-    if (!touchDragEl || draggedPiece === null) return;
-    const touch = e.touches[0];
-    touchDragEl.style.left = (touch.clientX - 30) + 'px';
-    touchDragEl.style.top = (touch.clientY - 30) + 'px';
-    
-    // Find element under finger
-    touchDragEl.style.display = 'none';
-    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-    touchDragEl.style.display = '';
-    
-    // Clear previous preview
-    document.querySelectorAll('.puzzle-grid').forEach(g => clearPreview(g));
-    
-    // Show preview if over a puzzle cell
-    if (elemBelow && elemBelow.classList.contains('cell')) {
-        const grid = elemBelow.closest('.puzzle-grid');
-        const puzzle = elemBelow.closest('.puzzle');
-        if (grid && puzzle) {
-            const tier = parseInt(puzzle.dataset.tier);
-            const idx = parseInt(puzzle.dataset.index);
-            const puzzleData = (tier === 1 ? tier1Puzzles : tier2Puzzles)[idx];
-            const row = parseInt(elemBelow.dataset.row);
-            const col = parseInt(elemBelow.dataset.col);
-            if (!isNaN(row) && !isNaN(col)) {
-                const shape = getRotatedShape(draggedPiece, currentRotation, currentMirror);
-                showPreview(grid, puzzleData, shape, row, col, draggedFromPuzzle?.placedIndex);
-                touchCurrentTarget = { tier, idx, grid };
-            }
-        }
-    } else {
-        touchCurrentTarget = null;
-    }
-}
-
-function handleTouchEnd(e) {
-    if (!touchDragEl) return;
-    
-    // Place piece if over valid target
-    if (touchCurrentTarget) {
-        const { tier, idx, grid } = touchCurrentTarget;
-        const bestRow = parseInt(grid.dataset.bestRow);
-        const bestCol = parseInt(grid.dataset.bestCol);
-        clearPreview(grid);
-        if (!isNaN(bestRow) && !isNaN(bestCol)) {
-            tryPlacePieceAt(tier, idx, bestRow, bestCol);
-        }
-    }
-    
-    // Cleanup
-    touchDragEl.remove();
-    touchDragEl = null;
-    touchCurrentTarget = null;
-    draggedPiece = null;
-    draggedIndex = null;
-    draggedFromPuzzle = null;
-    document.removeEventListener('touchmove', handleTouchMove);
-    document.removeEventListener('touchend', handleTouchEnd);
-}
-
-function startTouchDrag(type, index, fromPuzzle = null) {
-    draggedPiece = type;
-    draggedIndex = index;
-    draggedFromPuzzle = fromPuzzle;
-    selectedPiece = null;
-    touchDragEl = createTouchGhost(type, currentRotation, currentMirror);
-    document.addEventListener('touchmove', handleTouchMove, { passive: true });
-    document.addEventListener('touchend', handleTouchEnd);
 }
 
 // Generate easy puzzle (<=3 cells) for starting hand

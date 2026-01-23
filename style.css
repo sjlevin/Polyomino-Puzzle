@@ -104,12 +104,3 @@ h1, h2 { margin-bottom: 10px; }
 .history-item code { font-family: monospace; line-height: 1.1; display: block; margin-top: 5px; }
 
 
-.touch-ghost {
-    position: fixed;
-    pointer-events: none;
-    z-index: 1000;
-    opacity: 0.8;
-    background: #3d3d5c;
-    padding: 5px;
-    border-radius: 4px;
-}
