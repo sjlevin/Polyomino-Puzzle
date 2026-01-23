@@ -1,6 +1,6 @@
-# Project L - Web Edition
+# Polyomino Puzzle
 
-A browser-based implementation of the Project L polyomino puzzle game.
+A browser-based polyomino puzzle game where you fill shapes with pieces to earn points.
 
 ## Play
 
@@ -59,7 +59,7 @@ Timer colors:
 ## Project Structure
 
 ```
-ProjectL/
+polyomino-puzzle/
 ├── index.html          # Main HTML file
 ├── style.css           # Styling
 ├── game.js             # Game logic

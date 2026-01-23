@@ -1,7 +1,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: system-ui; background: #1a1a2e; color: #fff; padding: 20px; }
 #game { max-width: 900px; margin: 0 auto; }
-h2 { margin-bottom: 10px; }
+h1, h2 { margin-bottom: 10px; }
 #puzzles, #pieces { margin-bottom: 20px; }
 #puzzle-row, #piece-supply { display: flex; gap: 15px; flex-wrap: wrap; }
 .puzzle-row { display: flex; gap: 15px; margin-bottom: 15px; min-height: 300px; align-items: flex-start; }
