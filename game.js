@@ -463,25 +463,25 @@ function createPuzzleElement(puzzle, index, tier) {
         });
     });
     
-    const info = document.createElement('div');
-    info.className = 'puzzle-info';
-    info.innerHTML = puzzle.reward ? '<span class="reward-label">Reward:</span>' : `${puzzle.points} pts`;
-    
-    // Add reward piece preview for tier 1
-    if (puzzle.reward) {
-        const rewardEl = createPieceElement(puzzle.reward, -1, 0, false);
-        rewardEl.classList.add('reward-preview');
-        info.appendChild(rewardEl);
-    }
-    
     // Add timer
     const timerContainer = document.createElement('div');
     timerContainer.className = 'timer-container';
     timerContainer.innerHTML = createTimerSVG(puzzle.turnsLeft, puzzle.maxTurns);
     
+    // Add reward section
+    const rewardSection = document.createElement('div');
+    rewardSection.className = 'reward-section';
+    if (puzzle.reward) {
+        const rewardEl = createPieceElement(puzzle.reward, -1, 0, false);
+        rewardEl.classList.add('reward-preview');
+        rewardSection.appendChild(rewardEl);
+    } else {
+        rewardSection.innerHTML = `<span class="points-reward">${puzzle.points} pts</span>`;
+    }
+    
     el.appendChild(grid);
-    el.appendChild(info);
     el.appendChild(timerContainer);
+    el.appendChild(rewardSection);
     
     el.addEventListener('dragleave', e => {
         if (!el.contains(e.relatedTarget)) clearPreview(grid);

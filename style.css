@@ -40,13 +40,13 @@ h1, h2 { margin-bottom: 10px; }
     width: 220px;
     height: 280px;
 }
-.puzzle-info { margin-top: 8px; font-size: 14px; display: flex; align-items: center; gap: 5px; }
 .timer-container { margin-top: 5px; }
 .timer { display: block; margin: 0 auto; }
 
+.reward-section { margin-top: 8px; min-height: 30px; display: flex; align-items: center; justify-content: center; }
 .reward-preview { background: transparent; padding: 2px; cursor: default; }
 .reward-preview .piece-grid .cell.filled { background: #4a9; }
-.reward-label { font-size: 10px; color: #4a9; margin-right: 5px; }
+.points-reward { font-size: 14px; font-weight: bold; color: #4a9; }
 .puzzle-grid {
     display: grid;
     gap: 2px;
@@ -71,7 +71,6 @@ h1, h2 { margin-bottom: 10px; }
     h1 { font-size: 1.3em; }
     h2 { font-size: 1em; }
     #score { font-size: 12px; }
-    .puzzle-info { font-size: 11px; }
     .timer { transform: scale(0.8); }
     #pieces { padding: 8px; }
     #pieces h2 { font-size: 12px; margin-bottom: 5px; }
