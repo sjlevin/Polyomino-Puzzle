@@ -5,6 +5,8 @@ h2 { margin-bottom: 10px; }
 #puzzles, #pieces { margin-bottom: 20px; }
 #puzzle-row, #piece-supply { display: flex; gap: 15px; flex-wrap: wrap; }
 .puzzle-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+#pieces h2 { display: flex; align-items: center; gap: 15px; }
+#take-dot { font-size: 12px; padding: 4px 8px; cursor: pointer; }
 #score { font-size: 16px; line-height: 1.6; }
 #score span { font-weight: bold; }
 
@@ -36,6 +38,8 @@ h2 { margin-bottom: 10px; }
 .puzzle-grid .cell.empty { background: #222; }
 .puzzle-grid .cell.filled { background: #f90; }
 .puzzle-grid .cell.solid { background: #666; }
+.puzzle-grid .cell.preview { background: rgba(255, 153, 0, 0.5); }
+.puzzle-grid .cell.preview-invalid { background: rgba(255, 0, 0, 0.4); }
 
 .piece {
     background: #3d3d5c;

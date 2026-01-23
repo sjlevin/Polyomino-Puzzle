@@ -87,6 +87,14 @@ node validate-puzzles.js
 
 Checks `puzzles.js` for any duplicate puzzles (accounting for rotation and mirroring). Exits with error code 1 if duplicates found.
 
+### Run Tests
+
+```bash
+node test.js
+```
+
+Runs unit tests for core game logic (rotation, placement, snap-to-grid). Exits with error code 1 if any tests fail.
+
 ### Puzzle Format
 
 Puzzles are defined as grids where `1` = empty cell to fill, `0` = blocked:

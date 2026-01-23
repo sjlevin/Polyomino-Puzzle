@@ -97,21 +97,20 @@ function generateUniquePuzzles(minCells, maxCells, count, seen) {
     return puzzles.sort((a, b) => a.cells - b.cells);
 }
 
-// Piece rewards for tier 1
-const REWARDS = ['dot', 'domino', 'tromino_i', 'tromino_l', 'tetro_i', 'tetro_o', 'tetro_t', 'tetro_s', 'tetro_l'];
+// Piece rewards for tier 1 (no single dot - too easy)
+const REWARDS = ['domino', 'tromino_i', 'tromino_l', 'tetro_i', 'tetro_o', 'tetro_t', 'tetro_s', 'tetro_l'];
 
 function getReward(cells) {
-    if (cells <= 1) return 'dot';
     if (cells <= 2) return 'domino';
-    if (cells <= 3) return REWARDS[2 + Math.floor(Math.random() * 2)];
-    return REWARDS[4 + Math.floor(Math.random() * 5)];
+    if (cells <= 3) return REWARDS[1 + Math.floor(Math.random() * 2)];
+    return REWARDS[3 + Math.floor(Math.random() * 5)];
 }
 
-// Generate both tiers
+// Generate both tiers (skip 1-cell puzzles)
 const seen = new Set();
 
-console.log('Generating Tier 1 puzzles (1-5 cells)...');
-const tier1 = generateUniquePuzzles(1, 5, 15, seen);
+console.log('Generating Tier 1 puzzles (2-5 cells)...');
+const tier1 = generateUniquePuzzles(2, 5, 15, seen);
 
 console.log('Generating Tier 2 puzzles (6-14 cells)...');
 const tier2 = generateUniquePuzzles(6, 14, 25, seen);
@@ -123,9 +122,10 @@ let output = `// Auto-generated puzzles - do not edit manually
 const TIER1_PUZZLES = [
 `;
 
-tier1.forEach(p => {
+tier1.forEach((p, i) => {
     const reward = getReward(p.cells);
-    output += `    { grid: ${JSON.stringify(p.grid)}, points: 0, reward: '${reward}' },\n`;
+    const id = `T1-${String(i + 1).padStart(2, '0')}`;
+    output += `    { id: '${id}', grid: ${JSON.stringify(p.grid)}, points: 0, reward: '${reward}' },\n`;
 });
 
 output += `];
@@ -133,9 +133,10 @@ output += `];
 const TIER2_PUZZLES = [
 `;
 
-tier2.forEach(p => {
+tier2.forEach((p, i) => {
     const points = Math.floor(p.cells * 0.8);
-    output += `    { grid: ${JSON.stringify(p.grid)}, points: ${points}, reward: null },\n`;
+    const id = `T2-${String(i + 1).padStart(2, '0')}`;
+    output += `    { id: '${id}', grid: ${JSON.stringify(p.grid)}, points: ${points}, reward: null },\n`;
 });
 
 output += `];
@@ -147,6 +148,6 @@ if (typeof module !== 'undefined') module.exports = { TIER1_PUZZLES, TIER2_PUZZL
 const fs = require('fs');
 fs.writeFileSync('puzzles.js', output);
 
-console.log(`\n✓ Generated ${tier1.length} Tier 1 puzzles (1-5 cells)`);
+console.log(`\n✓ Generated ${tier1.length} Tier 1 puzzles (2-5 cells)`);
 console.log(`✓ Generated ${tier2.length} Tier 2 puzzles (6-14 cells)`);
 console.log(`✓ Written to puzzles.js`);
