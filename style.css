@@ -42,6 +42,7 @@ h1, h2 { margin-bottom: 10px; }
     gap: 2px;
     background: #444;
     padding: 2px;
+    width: fit-content;
 }
 .puzzle-grid .cell {
     width: 30px;
@@ -51,10 +52,31 @@ h1, h2 { margin-bottom: 10px; }
     min-height: 30px;
 }
 @media (max-width: 600px) {
-    .puzzle { width: 160px; height: 240px; }
-    .puzzle-grid .cell { width: 24px; height: 24px; min-width: 24px; min-height: 24px; }
-    .piece-grid .cell { width: 18px; height: 18px; }
-    body { padding: 10px; }
+    .puzzle { width: 140px; height: 200px; padding: 6px; }
+    .puzzle-grid .cell { width: 20px; height: 20px; min-width: 20px; min-height: 20px; }
+    .puzzle-grid { gap: 1px; padding: 1px; }
+    .piece-grid .cell { width: 16px; height: 16px; }
+    .puzzle-row { flex-wrap: wrap; height: auto; min-height: auto; gap: 8px; }
+    body { padding: 8px; padding-bottom: 120px; }
+    h1 { font-size: 1.3em; }
+    h2 { font-size: 1em; }
+    #score { font-size: 12px; }
+    .puzzle-info { font-size: 11px; }
+    .timer { transform: scale(0.8); }
+    #pieces {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #1a1a2e;
+        padding: 8px;
+        border-top: 2px solid #3d3d5c;
+        z-index: 100;
+    }
+    #pieces h2 { font-size: 12px; margin-bottom: 5px; }
+    #piece-supply { gap: 6px; }
+    .piece { padding: 3px; }
+    #touch-hint { font-size: 10px; }
 }
 .puzzle-grid .cell.empty { background: #222; }
 .puzzle-grid .cell.filled { background: #f90; }
