@@ -10,7 +10,20 @@ body {
 }
 #game { max-width: 900px; margin: 0 auto; }
 h1, h2 { margin-bottom: 10px; }
-#puzzles, #pieces { margin-bottom: 20px; }
+#puzzles { margin-bottom: 20px; }
+#pieces {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1a1a2e;
+    padding: 10px 20px;
+    border-top: 2px solid #3d3d5c;
+    z-index: 100;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+body { padding-bottom: 150px; }
 #puzzle-row, #piece-supply { display: flex; gap: 15px; flex-wrap: wrap; }
 .puzzle-row { display: flex; gap: 15px; margin-bottom: 15px; min-height: 300px; align-items: flex-start; }
 #pieces h2 { display: flex; align-items: center; gap: 15px; }
@@ -64,18 +77,7 @@ h1, h2 { margin-bottom: 10px; }
     #score { font-size: 12px; }
     .puzzle-info { font-size: 11px; }
     .timer { transform: scale(0.8); }
-    #pieces {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: #1a1a2e;
-        padding: 8px;
-        border-top: 2px solid #3d3d5c;
-        z-index: 100;
-        max-height: 40vh;
-        overflow-y: auto;
-    }
+    #pieces { padding: 8px; }
     #pieces h2 { font-size: 12px; margin-bottom: 5px; }
     #piece-supply { gap: 6px; }
     .piece { padding: 3px; }
