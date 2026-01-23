@@ -500,7 +500,6 @@ function createPuzzleElement(puzzle, index, tier) {
                 cellEl.draggable = true;
                 cellEl.style.cursor = 'grab';
                 cellEl.addEventListener('dragstart', e => {
-                    selectedPiece = null; // Clear selection when dragging
                     // Find which placed piece this cell belongs to
                     const placedIdx = puzzle.placedPieces.findIndex(placed => {
                         const shape = getRotatedShape(placed.type, placed.rotation, placed.mirror);
@@ -512,9 +511,13 @@ function createPuzzleElement(puzzle, index, tier) {
                         const placed = puzzle.placedPieces[placedIdx];
                         draggedPiece = placed.type;
                         draggedIndex = null;
-                        currentRotation = placed.rotation;
-                        currentMirror = placed.mirror;
+                        // Only use placed piece's rotation if not already selected (user may have rotated)
+                        if (!selectedPiece?.fromPuzzle || selectedPiece.fromPuzzle.placedIndex !== placedIdx) {
+                            currentRotation = placed.rotation;
+                            currentMirror = placed.mirror;
+                        }
                         draggedFromPuzzle = { tier, puzzleIndex: index, placedIndex: placedIdx };
+                        selectedPiece = null;
                     }
                 });
                 
@@ -893,6 +896,27 @@ document.getElementById('return-btn').addEventListener('click', returnSelectedPi
 document.getElementById('piece-supply').addEventListener('click', e => {
     if (e.target.id === 'piece-supply' && selectedPiece?.fromPuzzle) {
         returnSelectedPiece();
+    }
+});
+
+// Drag piece to supply area to return it
+const pieceSupply = document.getElementById('piece-supply');
+pieceSupply.addEventListener('dragover', e => {
+    if (draggedFromPuzzle) e.preventDefault();
+});
+pieceSupply.addEventListener('drop', e => {
+    e.preventDefault();
+    if (draggedFromPuzzle) {
+        const { tier, puzzleIndex, placedIndex } = draggedFromPuzzle;
+        const puzzleArray = tier === 1 ? tier1Puzzles : tier2Puzzles;
+        const puzzle = puzzleArray[puzzleIndex];
+        if (puzzle && puzzle.placedPieces[placedIndex]) {
+            playerPieces.push(draggedPiece);
+            puzzle.placedPieces.splice(placedIndex, 1);
+        }
+        draggedPiece = null;
+        draggedFromPuzzle = null;
+        render();
     }
 });
 
