@@ -623,6 +623,7 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
             updatePuzzleStatus(puzzle.id, 'solved');
             puzzleArray.splice(puzzleIndex, 1);
             addNewPuzzle(tier);
+            selectedPiece = null;
         }
         render();
     }
