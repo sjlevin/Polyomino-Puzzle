@@ -545,7 +545,7 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
             render();
         });
         
-        // Touch support - long-press to mirror
+        // Touch support - long-press to mirror, tap to select/rotate
         el.addEventListener('touchstart', e => {
             touchStartTime = Date.now();
         }, { passive: true });
@@ -553,9 +553,25 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
             e.preventDefault();
             if (Date.now() - touchStartTime > 400) {
                 currentMirror = !currentMirror;
-                render();
+            } else {
+                // Tap - same as click
+                if (sacrificeMode) {
+                    const level = PIECES[type].level;
+                    if (sacrificeSelection.includes(index)) {
+                        sacrificeSelection = sacrificeSelection.filter(i => i !== index);
+                    } else if (sacrificeSelection.length < 3) {
+                        const maxLevel = Math.max(...Object.values(PIECES).map(p => p.level));
+                        if (level < maxLevel && (sacrificeSelection.length === 0 || PIECES[playerPieces[sacrificeSelection[0]].type].level === level)) {
+                            sacrificeSelection.push(index);
+                        }
+                    }
+                } else if (selectedPiece && selectedPiece.type === type && selectedPiece.index === index) {
+                    currentRotation = (currentRotation + 1) % 4;
+                } else {
+                    selectedPiece = { type, index };
+                }
             }
-            // Click handler handles select/rotate
+            render();
         });
     }
     
