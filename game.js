@@ -958,6 +958,10 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
         const totalFilled = puzzle.placedPieces.reduce((sum, p) => 
             sum + getRotatedShape(p.type, p.rotation, p.mirror).flat().filter(c => c).length, 0);
         
+        if (totalFilled >= totalEmpty - 1) {
+            console.log('Near completion:', puzzle.id, 'empty:', totalEmpty, 'filled:', totalFilled, 'pieces:', JSON.stringify(puzzle.placedPieces));
+        }
+        
         // Check required piece constraint
         let requiredSatisfied = true;
         if (puzzle.requiredPiece) {
