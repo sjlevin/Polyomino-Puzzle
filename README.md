@@ -142,3 +142,34 @@ Game state is stored in `localStorage` under key `polyomino-save`.
 3. Without migration, players with old saves will lose progress!
 
 See the `SAVE/LOAD SYSTEM` comment block in `game.js` for migration examples.
+
+## Debug Tooltip Format
+
+Double-click any puzzle to copy debug info to clipboard. Format:
+
+```
+ID: T2-005-a7f2
+Grid: 5x4 (12 cells)
+Turns: 8/12
+Required: tetro_l@1,2 r2m
+Placed: domino@0,0 r0; tromino_i@2,1 r1m
+Layout:
+█████
+█·███
+███··
+█████
+```
+
+**Field meanings:**
+- `ID` - Puzzle identifier (Tier-Sequence-Hash)
+- `Grid` - Width x Height (total fillable cells)
+- `Turns` - Remaining/Maximum turns
+- `Required` - Ghost piece constraint: `type@row,col rROTATION[m if mirrored]`
+- `Placed` - Pieces on puzzle: `type@row,col rROTATION[m if mirrored]`
+- `Layout` - Grid visualization: █ = fillable, · = solid/blocked
+
+**Piece placement format:** `type@row,col rNm`
+- `type` - Piece name (e.g., tetro_l, tromino_i)
+- `row,col` - Top-left position of piece bounding box
+- `rN` - Rotation (0-3, each = 90° clockwise)
+- `m` - Present if piece is mirrored

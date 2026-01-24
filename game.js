@@ -9,16 +9,31 @@ const PIECES = {
     tetro_t: { shape: [[1,1,1],[0,1,0]], level: 4 },
     tetro_s: { shape: [[0,1,1],[1,1,0]], level: 4 },
     tetro_o: { shape: [[1,1],[1,1]], level: 4 },
+    // Pentominoes (Level 5) - only available via sacrifice in Advanced Mode
+    pento_f: { shape: [[0,1,1],[1,1,0],[0,1,0]], level: 5 },
+    pento_i: { shape: [[1,1,1,1,1]], level: 5 },
+    pento_l: { shape: [[1,0],[1,0],[1,0],[1,1]], level: 5 },
+    pento_n: { shape: [[0,1],[1,1],[1,0],[1,0]], level: 5 },
+    pento_p: { shape: [[1,1],[1,1],[1,0]], level: 5 },
+    pento_t: { shape: [[1,1,1],[0,1,0],[0,1,0]], level: 5 },
+    pento_u: { shape: [[1,0,1],[1,1,1]], level: 5 },
+    pento_v: { shape: [[1,0,0],[1,0,0],[1,1,1]], level: 5 },
+    pento_w: { shape: [[1,0,0],[1,1,0],[0,1,1]], level: 5 },
+    pento_x: { shape: [[0,1,0],[1,1,1],[0,1,0]], level: 5 },
+    pento_y: { shape: [[0,1],[1,1],[0,1],[0,1]], level: 5 },
+    pento_z: { shape: [[1,1,0],[0,1,0],[0,1,1]], level: 5 },
 };
 
+const PENTOMINOES = ['pento_f', 'pento_i', 'pento_l', 'pento_n', 'pento_p', 'pento_t', 'pento_u', 'pento_v', 'pento_w', 'pento_x', 'pento_y', 'pento_z'];
 const REWARDS = ['domino', 'tromino_i', 'tromino_l', 'tetro_i', 'tetro_o', 'tetro_t', 'tetro_s', 'tetro_l'];
 
 // SAVE_VERSION: Increment when changing saved state structure. See SAVE/LOAD SYSTEM docs below.
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 const STORAGE_KEY = 'polyomino-save';
 const CONSENT_KEY = 'polyomino-storage-consent';
 
-let playerPieces = ['dot', 'domino'];
+let advancedMode = false;
+let playerPieces = [{ type: 'dot' }, { type: 'domino' }]; // { type, expiry? }
 let tier1Puzzles = [];
 let tier2Puzzles = [];
 let seenPuzzles = new Set();
@@ -27,6 +42,7 @@ let puzzleSeq = { 1: 0, 2: 0 };
 
 const TIER1_TURNS = 8;
 const TIER2_TURNS = 12;
+const PIECE_EXPIRY = 15;
 let points = 0;
 let totalTurns = 0;
 let stats = { tier1Solved: 0, tier1Expired: 0, tier2Solved: 0, tier2Expired: 0 };
@@ -36,6 +52,9 @@ let draggedFromPuzzle = null;
 let currentRotation = 0;
 let currentMirror = false;
 let selectedPiece = null;
+let sacrificeMode = false;
+let sacrificeSelection = []; // indices of pieces selected for sacrifice
+let lastPlacement = null; // { tier, puzzleIndex, placedIndex, pieceType } for undo
 let touchStartTime = 0;
 
 /*
@@ -75,11 +94,12 @@ function saveGame() {
     if (!hasStorageConsent()) return;
     const state = {
         version: SAVE_VERSION,
+        advancedMode,
         playerPieces,
         tier1Puzzles,
         tier2Puzzles,
         seenPuzzles: [...seenPuzzles],
-        puzzleHistory: puzzleHistory.slice(-200), // Cap at 200 entries
+        puzzleHistory: puzzleHistory.slice(-200),
         puzzleSeq,
         points,
         totalTurns,
@@ -99,13 +119,35 @@ function loadGame() {
         if (!saved) return false;
         const state = JSON.parse(saved);
         
-        // Migration: Add migration logic here when SAVE_VERSION changes
-        // if (state.version === 1) { /* migrate v1 -> v2 */ state.version = 2; }
+        // Migration v1 -> v2: Add advancedMode, convert playerPieces to objects
+        if (state.version === 1) {
+            state.advancedMode = false;
+            state.playerPieces = state.playerPieces.map(p => 
+                typeof p === 'string' ? { type: p } : p
+            );
+            state.version = 2;
+        }
+        
+        // Fix v2 saves that may have string playerPieces (from partial migration)
+        if (state.playerPieces && state.playerPieces.some(p => typeof p === 'string')) {
+            state.playerPieces = state.playerPieces.map(p => 
+                typeof p === 'string' ? { type: p } : p
+            );
+        }
+        
+        // Migrate lockedPiece -> requiredPiece in puzzles
+        [...(state.tier1Puzzles || []), ...(state.tier2Puzzles || [])].forEach(p => {
+            if (p.lockedPiece) {
+                p.requiredPiece = p.lockedPiece;
+                delete p.lockedPiece;
+            }
+        });
         
         if (state.version !== SAVE_VERSION) {
             console.warn('Save version mismatch, starting fresh');
             return false;
         }
+        advancedMode = state.advancedMode || false;
         playerPieces = state.playerPieces;
         tier1Puzzles = state.tier1Puzzles;
         tier2Puzzles = state.tier2Puzzles;
@@ -125,7 +167,13 @@ function loadGame() {
 function resetGame() {
     if (!confirm('Reset game? All progress will be lost.')) return;
     localStorage.removeItem(STORAGE_KEY);
-    playerPieces = ['dot', 'domino'];
+    const keepAdvanced = advancedMode;
+    advancedMode = keepAdvanced;
+    playerPieces = [{ type: 'dot' }, { type: 'domino' }];
+    if (keepAdvanced) {
+        playerPieces[0].expiry = PIECE_EXPIRY;
+        playerPieces[1].expiry = PIECE_EXPIRY;
+    }
     tier1Puzzles = [];
     tier2Puzzles = [];
     seenPuzzles = new Set();
@@ -141,6 +189,27 @@ function resetGame() {
     for (let i = 0; i < 3; i++) addNewPuzzle(1);
     for (let i = 0; i < 4; i++) addNewPuzzle(2);
     render();
+}
+
+function toggleAdvancedMode() {
+    advancedMode = !advancedMode;
+    // Add expiry to pieces that don't have it when entering advanced mode
+    if (advancedMode) {
+        playerPieces.forEach(p => {
+            if (p.expiry === undefined) p.expiry = PIECE_EXPIRY;
+        });
+    }
+    render();
+}
+
+const PIECE_LIMIT = 12;
+
+function addPieceToHand(type) {
+    if (advancedMode && playerPieces.length >= PIECE_LIMIT) return false;
+    const piece = { type };
+    if (advancedMode) piece.expiry = PIECE_EXPIRY;
+    playerPieces.push(piece);
+    return true;
 }
 
 function showStorageConsent() {
@@ -163,8 +232,8 @@ function declineStorage() {
 }
 
 // Puzzle generation
-function generateRandomPuzzle(targetCells) {
-    const maxDim = Math.min(6, targetCells);
+function generateRandomPuzzle(targetCells, advanced = false) {
+    const maxDim = advanced ? Math.min(7, targetCells) : Math.min(6, targetCells);
     const width = Math.floor(Math.random() * (maxDim - 1)) + 2;
     const height = Math.floor(Math.random() * (maxDim - 1)) + 2;
     
@@ -287,12 +356,12 @@ function getReward(cells) {
 }
 
 function generatePuzzle(tier) {
-    const [minCells, maxCells] = tier === 1 ? [2, 5] : [6, 14];
+    const [minCells, maxCells] = tier === 1 ? [2, 5] : (advancedMode ? [10, 20] : [6, 14]);
     const maxTurns = tier === 1 ? TIER1_TURNS : TIER2_TURNS;
     
     for (let attempts = 0; attempts < 500; attempts++) {
         const targetCells = minCells + Math.floor(Math.random() * (maxCells - minCells + 1));
-        const grid = generateRandomPuzzle(targetCells);
+        const grid = generateRandomPuzzle(targetCells, advancedMode);
         if (!grid) continue;
         
         const cells = countCells(grid);
@@ -309,7 +378,43 @@ function generatePuzzle(tier) {
         const pts = tier === 1 ? 0 : Math.floor(cells * 0.8);
         const reward = tier === 1 ? getReward(cells) : null;
         
-        const puzzle = { id, grid, points: pts, reward, tier, placedPieces: [], turnsLeft: maxTurns, maxTurns };
+        // Add required piece constraint in advanced mode (20% chance for T2)
+        let requiredPiece = null;
+        if (advancedMode && tier === 2 && Math.random() < 0.2) {
+            // Pick piece type: 5% L2, 40% L3, 40% L4, 15% L5
+            const roll = Math.random();
+            let pieceType;
+            if (roll < 0.05) pieceType = 'domino';
+            else if (roll < 0.45) pieceType = ['tromino_i', 'tromino_l'][Math.floor(Math.random() * 2)];
+            else if (roll < 0.85) pieceType = ['tetro_i', 'tetro_l', 'tetro_t', 'tetro_s', 'tetro_o'][Math.floor(Math.random() * 5)];
+            else pieceType = PENTOMINOES[Math.floor(Math.random() * PENTOMINOES.length)];
+            
+            // Random rotation and mirror for the required placement
+            const rotation = Math.floor(Math.random() * 4);
+            const mirror = Math.random() < 0.5;
+            const shape = getRotatedShape(pieceType, rotation, mirror);
+            
+            // Find valid placement within puzzle
+            const validPlacements = [];
+            for (let r = 0; r <= grid.length - shape.length; r++) {
+                for (let c = 0; c <= grid[0].length - shape[0].length; c++) {
+                    let fits = true;
+                    for (let sr = 0; sr < shape.length && fits; sr++) {
+                        for (let sc = 0; sc < shape[0].length && fits; sc++) {
+                            if (shape[sr][sc] && (!grid[r + sr] || !grid[r + sr][c + sc])) fits = false;
+                        }
+                    }
+                    if (fits) validPlacements.push({ row: r, col: c });
+                }
+            }
+            
+            if (validPlacements.length > 0) {
+                const pos = validPlacements[Math.floor(Math.random() * validPlacements.length)];
+                requiredPiece = { type: pieceType, row: pos.row, col: pos.col, rotation, mirror };
+            }
+        }
+        
+        const puzzle = { id, grid, points: pts, reward, tier, placedPieces: [], turnsLeft: maxTurns, maxTurns, requiredPiece };
         puzzleHistory.push({ id, grid: JSON.parse(JSON.stringify(grid)), tier, cells, timestamp: Date.now(), status: 'active' });
         return puzzle;
     }
@@ -352,7 +457,7 @@ function getRotatedShape(type, rotation, mirror = false) {
     return shape;
 }
 
-function createPieceElement(type, index, rotation = 0, isSupply = true, mirror = false) {
+function createPieceElement(type, index, rotation = 0, isSupply = true, mirror = false, expiry = undefined) {
     const shape = getRotatedShape(type, rotation, mirror);
     const baseShape = PIECES[type].shape;
     const maxDim = Math.max(baseShape.length, baseShape[0].length);
@@ -360,10 +465,11 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
     const el = document.createElement('div');
     el.className = 'piece';
     
-    // Highlight selected piece
+    // Highlight selected piece or sacrifice selection
     const isSelected = selectedPiece && selectedPiece.type === type && 
         (isSupply ? selectedPiece.index === index && !selectedPiece.fromPuzzle : false);
     if (isSelected) el.classList.add('selected');
+    if (sacrificeMode && sacrificeSelection.includes(index)) el.classList.add('sacrifice-selected');
     
     // Debug tooltip
     const piece = PIECES[type];
@@ -390,14 +496,38 @@ function createPieceElement(type, index, rotation = 0, isSupply = true, mirror =
     
     el.appendChild(grid);
     
+    // Add expiry badge only in advanced mode
+    if (isSupply && advancedMode && expiry !== undefined) {
+        const badge = document.createElement('div');
+        badge.className = 'expiry-badge' + (expiry <= 3 ? ' expiry-low' : '');
+        badge.textContent = expiry;
+        el.appendChild(badge);
+    }
+    
     if (isSupply) {
         el.addEventListener('dragstart', e => {
+            if (sacrificeMode) { e.preventDefault(); return; }
             draggedPiece = type;
             draggedIndex = index;
             el.classList.add('dragging');
         });
         el.addEventListener('dragend', () => el.classList.remove('dragging'));
         el.addEventListener('click', () => {
+            if (sacrificeMode) {
+                const level = PIECES[type].level;
+                if (sacrificeSelection.includes(index)) {
+                    // Deselect
+                    sacrificeSelection = sacrificeSelection.filter(i => i !== index);
+                } else if (sacrificeSelection.length < 3) {
+                    // Check if same level as first selection (or first pick), and not max level
+                    const maxLevel = Math.max(...Object.values(PIECES).map(p => p.level));
+                    if (level < maxLevel && (sacrificeSelection.length === 0 || PIECES[playerPieces[sacrificeSelection[0]].type].level === level)) {
+                        sacrificeSelection.push(index);
+                    }
+                }
+                render();
+                return;
+            }
             if (selectedPiece && selectedPiece.type === type && selectedPiece.index === index) {
                 currentRotation = (currentRotation + 1) % 4;
             } else {
@@ -462,11 +592,31 @@ function createPuzzleElement(puzzle, index, tier) {
     el.dataset.index = index;
     el.dataset.tier = tier;
     
-    // Debug tooltip
+    // Debug tooltip with full puzzle state
     const cells = puzzle.grid.flat().filter(c => c).length;
-    const placed = puzzle.placedPieces.map(p => p.type).join(', ') || 'none';
     const gridStr = puzzle.grid.map(r => r.map(c => c ? '█' : '·').join('')).join('\n');
-    el.title = `${puzzle.id}\nSize: ${puzzle.grid[0].length}x${puzzle.grid.length} (${cells} cells)\nPlaced: ${placed}\nTurns: ${puzzle.turnsLeft}/${puzzle.maxTurns}\n\n${gridStr}`;
+    const placedStr = puzzle.placedPieces.map(p => 
+        `${p.type}@${p.row},${p.col} r${p.rotation}${p.mirror ? 'm' : ''}`
+    ).join('; ') || 'none';
+    const reqStr = puzzle.requiredPiece ? 
+        `${puzzle.requiredPiece.type}@${puzzle.requiredPiece.row},${puzzle.requiredPiece.col} r${puzzle.requiredPiece.rotation}${puzzle.requiredPiece.mirror ? 'm' : ''}` : 'none';
+    
+    const debugInfo = `ID: ${puzzle.id}
+Grid: ${puzzle.grid[0].length}x${puzzle.grid.length} (${cells} cells)
+Turns: ${puzzle.turnsLeft}/${puzzle.maxTurns}
+Required: ${reqStr}
+Placed: ${placedStr}
+Layout:
+${gridStr}`;
+    
+    el.title = debugInfo;
+    
+    // Double-click to copy debug info
+    el.addEventListener('dblclick', () => {
+        navigator.clipboard.writeText(debugInfo).then(() => {
+            console.log('Puzzle debug info copied to clipboard');
+        });
+    });
     
     const grid = document.createElement('div');
     grid.className = 'puzzle-grid';
@@ -474,6 +624,30 @@ function createPuzzleElement(puzzle, index, tier) {
     
     // Build display grid with placed pieces
     const displayGrid = puzzle.grid.map(row => row.map(c => c ? 'empty' : 'solid'));
+    
+    // Check if required piece constraint is satisfied
+    let requiredSatisfied = false;
+    if (puzzle.requiredPiece) {
+        const rp = puzzle.requiredPiece;
+        requiredSatisfied = puzzle.placedPieces.some(p => 
+            p.type === rp.type && p.row === rp.row && p.col === rp.col && 
+            p.rotation === rp.rotation && p.mirror === rp.mirror
+        );
+    }
+    
+    // Show required piece ghost if not yet satisfied
+    if (puzzle.requiredPiece && !requiredSatisfied) {
+        const rp = puzzle.requiredPiece;
+        const shape = getRotatedShape(rp.type, rp.rotation, rp.mirror);
+        shape.forEach((row, r) => {
+            row.forEach((cell, c) => {
+                if (cell && displayGrid[rp.row + r] && displayGrid[rp.row + r][rp.col + c] !== undefined) {
+                    displayGrid[rp.row + r][rp.col + c] = 'required';
+                }
+            });
+        });
+    }
+    
     puzzle.placedPieces.forEach((placed, placedIdx) => {
         const shape = getRotatedShape(placed.type, placed.rotation, placed.mirror);
         const isSelected = selectedPiece?.fromPuzzle?.tier === tier && 
@@ -495,7 +669,7 @@ function createPuzzleElement(puzzle, index, tier) {
             cellEl.dataset.row = r;
             cellEl.dataset.col = c;
             
-            // Make filled cells draggable to move pieces
+            // Make filled cells draggable to move pieces (not locked cells)
             if (state === 'filled' || state === 'filled selected-placed') {
                 cellEl.draggable = true;
                 cellEl.style.cursor = 'grab';
@@ -546,7 +720,7 @@ function createPuzzleElement(puzzle, index, tier) {
                 if (draggedPiece === null) return;
                 const shape = getRotatedShape(draggedPiece, currentRotation, currentMirror);
                 clearPreview(grid);
-                showPreview(grid, puzzle, shape, r, c, draggedFromPuzzle?.placedIndex);
+                showPreview(grid, puzzle, shape, r, c, draggedFromPuzzle?.placedIndex, draggedPiece, currentRotation, currentMirror);
             });
             cellEl.addEventListener('dragleave', e => {
                 if (!grid.contains(e.relatedTarget)) clearPreview(grid);
@@ -569,7 +743,7 @@ function createPuzzleElement(puzzle, index, tier) {
                     draggedIndex = selectedPiece.index;
                     draggedFromPuzzle = selectedPiece.fromPuzzle || null;
                     const shape = getRotatedShape(draggedPiece, currentRotation, currentMirror);
-                    const best = findBestPlacement(puzzle, shape, r, c, draggedFromPuzzle?.placedIndex);
+                    const best = findBestPlacement(puzzle, shape, r, c, draggedFromPuzzle?.placedIndex, draggedPiece, currentRotation, currentMirror);
                     if (best) {
                         tryPlacePieceAt(tier, index, best.row, best.col);
                         selectedPiece = null;
@@ -610,6 +784,20 @@ function createPuzzleElement(puzzle, index, tier) {
         const rewardEl = createPieceElement(puzzle.reward, -1, 0, false);
         rewardEl.classList.add('reward-preview');
         rewardSection.appendChild(rewardEl);
+    } else if (advancedMode) {
+        // Par-based scoring: points decrease in thirds as timer depletes
+        const cells = puzzle.grid.flat().filter(c => c).length;
+        const base = Math.ceil(cells / 2) + (puzzle.requiredPiece ? 3 : 0);
+        const timerPct = puzzle.turnsLeft / puzzle.maxTurns;
+        let pts, color;
+        if (timerPct > 0.6) {
+            pts = base; color = '#4a4';
+        } else if (timerPct > 0.3) {
+            pts = Math.floor(base * 2 / 3); color = '#ca2';
+        } else {
+            pts = Math.floor(base / 3); color = '#c44';
+        }
+        rewardSection.innerHTML = `<span class="points-reward" style="color:${color}">${pts} pts</span>`;
     } else {
         rewardSection.innerHTML = `<span class="points-reward">${puzzle.points} pts</span>`;
     }
@@ -633,12 +821,12 @@ function clearPreview(grid) {
     delete grid.dataset.bestCol;
 }
 
-function findBestPlacement(puzzle, shape, targetRow, targetCol, ignorePlacedIdx = -1) {
+function findBestPlacement(puzzle, shape, targetRow, targetCol, ignorePlacedIdx = -1, pieceType = null, rotation = 0, mirror = false) {
     // Try positions in order of distance from target cell
     const positions = [];
     for (let r = -shape.length + 1; r < puzzle.grid.length; r++) {
         for (let c = -shape[0].length + 1; c < puzzle.grid[0].length; c++) {
-            if (canPlace(puzzle, shape, r, c, ignorePlacedIdx)) {
+            if (canPlace(puzzle, shape, r, c, ignorePlacedIdx, pieceType, rotation, mirror)) {
                 // Calculate distance from target to each cell of the shape
                 let minDist = Infinity;
                 shape.forEach((row, sr) => {
@@ -659,9 +847,9 @@ function findBestPlacement(puzzle, shape, targetRow, targetCol, ignorePlacedIdx 
     return positions[0];
 }
 
-function showPreview(grid, puzzle, shape, startRow, startCol, ignorePlacedIdx = -1) {
+function showPreview(grid, puzzle, shape, startRow, startCol, ignorePlacedIdx = -1, pieceType = null, rotation = 0, mirror = false) {
     const cols = puzzle.grid[0].length;
-    const best = findBestPlacement(puzzle, shape, startRow, startCol, ignorePlacedIdx);
+    const best = findBestPlacement(puzzle, shape, startRow, startCol, ignorePlacedIdx, pieceType, rotation, mirror);
     
     if (!best) return;
     
@@ -680,13 +868,30 @@ function showPreview(grid, puzzle, shape, startRow, startCol, ignorePlacedIdx = 
     grid.dataset.bestCol = best.col;
 }
 
-function canPlace(puzzle, shape, startRow, startCol, ignorePlacedIdx = -1) {
+function canPlace(puzzle, shape, startRow, startCol, ignorePlacedIdx = -1, pieceType = null, rotation = 0, mirror = false) {
+    // Check if this is the exact required piece placement
+    const isExactRequiredMatch = puzzle.requiredPiece && 
+        pieceType === puzzle.requiredPiece.type && 
+        startRow === puzzle.requiredPiece.row && 
+        startCol === puzzle.requiredPiece.col && 
+        rotation === puzzle.requiredPiece.rotation && 
+        mirror === puzzle.requiredPiece.mirror;
+    
     for (let r = 0; r < shape.length; r++) {
         for (let c = 0; c < shape[0].length; c++) {
             if (!shape[r][c]) continue;
             const pr = startRow + r, pc = startCol + c;
             if (pr < 0 || pr >= puzzle.grid.length || pc < 0 || pc >= puzzle.grid[0].length) return false;
             if (!puzzle.grid[pr][pc]) return false; // solid area
+            // Check if overlaps required piece area (only exact match allowed)
+            if (puzzle.requiredPiece && !isExactRequiredMatch) {
+                const rp = puzzle.requiredPiece;
+                const rpShape = getRotatedShape(rp.type, rp.rotation, rp.mirror);
+                const overlapsRequired = rpShape.some((row, rr) => row.some((cell, rc) =>
+                    cell && rp.row + rr === pr && rp.col + rc === pc
+                ));
+                if (overlapsRequired) return false;
+            }
             // Check if already filled (ignoring the piece being moved)
             const filled = puzzle.placedPieces.some((placed, idx) => {
                 if (idx === ignorePlacedIdx) return false;
@@ -727,7 +932,7 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
     
     const ignorePlacedIdx = isMovingWithinSamePuzzle ? fromPuzzle.placedIndex : -1;
     
-    if (canPlace(puzzle, shape, row, col, ignorePlacedIdx)) {
+    if (canPlace(puzzle, shape, row, col, ignorePlacedIdx, draggedPiece, currentRotation, currentMirror)) {
         // Remove from source
         if (fromPuzzle) {
             const srcArray = fromPuzzle.tier === 1 ? tier1Puzzles : tier2Puzzles;
@@ -738,6 +943,10 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
         
         // Add to target
         puzzle.placedPieces.push({ type: draggedPiece, rotation: currentRotation, mirror: currentMirror, row, col });
+        const placedIndex = puzzle.placedPieces.length - 1;
+        
+        // Track for undo (only if placing from hand, not moving within puzzle)
+        const canUndo = !fromPuzzle && draggedIndex !== null;
         
         // Only decrement turns if NOT moving within same puzzle
         if (!isMovingWithinSamePuzzle) {
@@ -749,16 +958,44 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
         const totalFilled = puzzle.placedPieces.reduce((sum, p) => 
             sum + getRotatedShape(p.type, p.rotation, p.mirror).flat().filter(c => c).length, 0);
         
-        if (totalFilled >= totalEmpty) {
-            points += puzzle.points;
-            puzzle.placedPieces.forEach(p => playerPieces.push(p.type));
-            if (puzzle.reward) playerPieces.push(puzzle.reward);
+        // Check required piece constraint
+        let requiredSatisfied = true;
+        if (puzzle.requiredPiece) {
+            const rp = puzzle.requiredPiece;
+            requiredSatisfied = puzzle.placedPieces.some(p => 
+                p.type === rp.type && p.row === rp.row && p.col === rp.col && 
+                p.rotation === rp.rotation && p.mirror === rp.mirror
+            );
+        }
+        
+        if (totalFilled >= totalEmpty && requiredSatisfied) {
+            // Puzzle completed - no undo available
+            lastPlacement = null;
+            // Calculate points
+            if (advancedMode && tier === 2) {
+                // Par-based scoring: fractions of base based on timer
+                const cells = totalEmpty;
+                const base = Math.ceil(cells / 2) + (puzzle.requiredPiece ? 3 : 0);
+                const timerPct = puzzle.turnsLeft / puzzle.maxTurns;
+                let pts;
+                if (timerPct > 0.6) pts = base;
+                else if (timerPct > 0.3) pts = Math.floor(base * 2 / 3);
+                else pts = Math.floor(base / 3);
+                points += pts;
+            } else {
+                points += puzzle.points;
+            }
+            puzzle.placedPieces.forEach(p => addPieceToHand(p.type));
+            if (puzzle.reward) addPieceToHand(puzzle.reward);
             if (tier === 1) stats.tier1Solved++;
             else stats.tier2Solved++;
             updatePuzzleStatus(puzzle.id, 'solved');
             puzzleArray.splice(puzzleIndex, 1);
             addNewPuzzle(tier);
             selectedPiece = null;
+        } else if (canUndo) {
+            // Track for undo
+            lastPlacement = { tier, puzzleIndex, placedIndex, pieceType: draggedPiece };
         }
         render();
     }
@@ -775,8 +1012,10 @@ function decrementAllTurns() {
         for (let i = puzzles.length - 1; i >= 0; i--) {
             puzzles[i].turnsLeft--;
             if (puzzles[i].turnsLeft <= 0) {
-                // Puzzle expired - refund pieces
-                puzzles[i].placedPieces.forEach(p => playerPieces.push(p.type));
+                // Puzzle expired - refund pieces (standard mode only)
+                if (!advancedMode) {
+                    puzzles[i].placedPieces.forEach(p => addPieceToHand(p.type));
+                }
                 if (tier === 1) stats.tier1Expired++;
                 else stats.tier2Expired++;
                 updatePuzzleStatus(puzzles[i].id, 'expired');
@@ -785,6 +1024,18 @@ function decrementAllTurns() {
             }
         }
     });
+    
+    // Decrement piece expiry in advanced mode
+    if (advancedMode) {
+        for (let i = playerPieces.length - 1; i >= 0; i--) {
+            if (playerPieces[i].expiry !== undefined) {
+                playerPieces[i].expiry--;
+                if (playerPieces[i].expiry <= 0) {
+                    playerPieces.splice(i, 1);
+                }
+            }
+        }
+    }
 }
 
 function render() {
@@ -799,9 +1050,9 @@ function render() {
     tier2Puzzles.forEach((p, i) => puzzleRow2.appendChild(createPuzzleElement(p, i, 2)));
     
     pieceSupply.innerHTML = '';
-    const sortedPieces = playerPieces.map((type, idx) => ({ type, idx }))
-        .sort((a, b) => PIECES[a.type].level - PIECES[b.type].level || a.type.localeCompare(b.type));
-    sortedPieces.forEach(({ type, idx }) => pieceSupply.appendChild(createPieceElement(type, idx, currentRotation, true, currentMirror)));
+    const sortedPieces = playerPieces.map((piece, idx) => ({ piece, idx }))
+        .sort((a, b) => PIECES[a.piece.type].level - PIECES[b.piece.type].level || a.piece.type.localeCompare(b.piece.type));
+    sortedPieces.forEach(({ piece, idx }) => pieceSupply.appendChild(createPieceElement(piece.type, idx, currentRotation, true, currentMirror, piece.expiry)));
     
     document.getElementById('points').textContent = points;
     document.getElementById('turns').textContent = totalTurns;
@@ -818,6 +1069,49 @@ function render() {
     } else {
         returnBtn.classList.add('hidden');
     }
+    
+    // Show undo button (always visible, disabled when no undo available)
+    const undoBtn = document.getElementById('undo-btn');
+    undoBtn.disabled = !lastPlacement;
+    undoBtn.classList.remove('hidden');
+    
+    // Show/hide sacrifice button in advanced mode
+    const sacrificeBtn = document.getElementById('sacrifice-btn');
+    if (advancedMode) {
+        sacrificeBtn.classList.remove('hidden');
+        if (sacrificeMode) {
+            sacrificeBtn.textContent = sacrificeSelection.length === 3 ? 'Confirm Sacrifice' : `Cancel (${sacrificeSelection.length}/3)`;
+            sacrificeBtn.disabled = false;
+        } else {
+            sacrificeBtn.textContent = 'Sacrifice';
+            sacrificeBtn.disabled = playerPieces.length < 3;
+        }
+    } else {
+        sacrificeBtn.classList.add('hidden');
+    }
+    
+    // Disable Take Dot at piece limit in advanced mode
+    const takeDotBtn = document.getElementById('take-dot');
+    const atLimit = advancedMode && playerPieces.length >= PIECE_LIMIT;
+    takeDotBtn.disabled = atLimit;
+    
+    // Piece count warning
+    const pieceCount = playerPieces.length;
+    const pieceWarning = document.getElementById('piece-warning');
+    if (advancedMode && pieceCount >= 10) {
+        pieceWarning.textContent = `${pieceCount}/${PIECE_LIMIT} pieces`;
+        pieceWarning.classList.remove('hidden');
+        if (pieceCount >= PIECE_LIMIT) pieceWarning.classList.add('at-limit');
+        else pieceWarning.classList.remove('at-limit');
+    } else {
+        pieceWarning.classList.add('hidden');
+    }
+    
+    // Sync advanced mode button
+    const advBtn = document.getElementById('advanced-toggle');
+    advBtn.textContent = advancedMode ? '★ Advanced' : 'Standard';
+    advBtn.className = advancedMode ? 'advanced-on' : 'advanced-off';
+    advBtn.title = advancedMode ? 'Click to switch to Standard Mode' : 'Click to switch to Advanced Mode';
     
     renderHistory();
     saveGame();
@@ -857,14 +1151,83 @@ render();
 showStorageConsent();
 
 document.getElementById('take-dot').addEventListener('click', () => {
-    playerPieces.push('dot');
+    addPieceToHand('dot');
+    decrementAllTurns();
+    render();
+});
+
+document.getElementById('sacrifice-btn').addEventListener('click', () => {
+    if (!sacrificeMode) {
+        // Enter sacrifice mode
+        sacrificeMode = true;
+        sacrificeSelection = [];
+        selectedPiece = null;
+        render();
+        return;
+    }
+    
+    if (sacrificeSelection.length < 3) {
+        // Cancel sacrifice mode
+        sacrificeMode = false;
+        sacrificeSelection = [];
+        render();
+        return;
+    }
+    
+    // Confirm sacrifice - get level of selected pieces
+    const level = PIECES[playerPieces[sacrificeSelection[0]].type].level;
+    
+    // Remove selected pieces (reverse order to preserve indices)
+    sacrificeSelection.sort((a, b) => b - a);
+    for (const idx of sacrificeSelection) {
+        playerPieces.splice(idx, 1);
+    }
+    
+    // Add random piece of next level
+    const nextLevelPieces = Object.keys(PIECES).filter(k => PIECES[k].level === level + 1);
+    if (nextLevelPieces.length > 0) {
+        const newPiece = nextLevelPieces[Math.floor(Math.random() * nextLevelPieces.length)];
+        addPieceToHand(newPiece);
+    }
+    
+    sacrificeMode = false;
+    sacrificeSelection = [];
     decrementAllTurns();
     render();
 });
 
 document.getElementById('reset-game').addEventListener('click', resetGame);
+document.getElementById('advanced-toggle').addEventListener('click', toggleAdvancedMode);
 document.getElementById('accept-storage').addEventListener('click', acceptStorage);
 document.getElementById('decline-storage').addEventListener('click', declineStorage);
+
+document.getElementById('undo-btn').addEventListener('click', () => {
+    if (!lastPlacement) return;
+    
+    const { tier, puzzleIndex, placedIndex, pieceType } = lastPlacement;
+    const puzzleArray = tier === 1 ? tier1Puzzles : tier2Puzzles;
+    const puzzle = puzzleArray[puzzleIndex];
+    
+    if (puzzle && puzzle.placedPieces[placedIndex]) {
+        // Remove piece from puzzle
+        puzzle.placedPieces.splice(placedIndex, 1);
+        
+        // Return piece to hand
+        addPieceToHand(pieceType);
+        
+        // Refund turn in standard mode only
+        if (!advancedMode) {
+            totalTurns--;
+            // Restore turns on all puzzles
+            [...tier1Puzzles, ...tier2Puzzles].forEach(p => p.turnsLeft++);
+            // Restore expiry on all pieces
+            playerPieces.forEach(p => { if (p.expiry !== undefined) p.expiry++; });
+        }
+    }
+    
+    lastPlacement = null;
+    render();
+});
 
 document.getElementById('rotate-btn').addEventListener('click', () => {
     currentRotation = (currentRotation + 1) % 4;
@@ -883,7 +1246,7 @@ function returnSelectedPiece() {
     const puzzle = puzzleArray[puzzleIndex];
     if (puzzle && puzzle.placedPieces[placedIndex]) {
         const placed = puzzle.placedPieces[placedIndex];
-        playerPieces.push(placed.type);
+        addPieceToHand(placed.type);
         puzzle.placedPieces.splice(placedIndex, 1);
         selectedPiece = null;
         render();
@@ -911,7 +1274,7 @@ pieceSupply.addEventListener('drop', e => {
         const puzzleArray = tier === 1 ? tier1Puzzles : tier2Puzzles;
         const puzzle = puzzleArray[puzzleIndex];
         if (puzzle && puzzle.placedPieces[placedIndex]) {
-            playerPieces.push(draggedPiece);
+            addPieceToHand(draggedPiece);
             puzzle.placedPieces.splice(placedIndex, 1);
         }
         draggedPiece = null;

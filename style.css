@@ -42,6 +42,16 @@ h1, h2 { margin-bottom: 10px; }
 #reset-game { background: #633; color: #faa; }
 #return-btn { background: #446; color: #aaf; }
 #return-btn.hidden { display: none; }
+#undo-btn { background: #464; color: #afa; }
+#undo-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+#sacrifice-btn { background: #a64; color: #fff; }
+#sacrifice-btn.hidden { display: none; }
+#sacrifice-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+#piece-warning { color: #ca2; font-size: 12px; }
+#piece-warning.hidden { display: none; }
+#piece-warning.at-limit { color: #c44; }
+#advanced-toggle.advanced-off { background: #444; color: #999; border: 2px solid #666; }
+#advanced-toggle.advanced-on { background: #a64; color: #fff; border: 2px solid #c86; }
 #take-dot { font-size: 12px; touch-action: manipulation; }
 #score { font-size: 16px; line-height: 1.6; }
 #score span { font-weight: bold; }
@@ -55,7 +65,7 @@ h1, h2 { margin-bottom: 10px; }
     align-items: center;
     justify-content: center;
     width: 220px;
-    height: 280px;
+    min-height: 280px;
 }
 .timer-container { margin-top: 5px; }
 .timer { display: block; margin: 0 auto; }
@@ -79,7 +89,7 @@ h1, h2 { margin-bottom: 10px; }
     min-height: 30px;
 }
 @media (max-width: 600px) {
-    .puzzle { width: 140px; height: 200px; padding: 6px; }
+    .puzzle { width: 140px; min-height: 200px; padding: 6px; }
     .puzzle-grid .cell { width: 20px; height: 20px; min-width: 20px; min-height: 20px; }
     .puzzle-grid { gap: 1px; padding: 1px; }
     .piece-grid .cell { width: 16px; height: 16px; }
@@ -95,6 +105,10 @@ h1, h2 { margin-bottom: 10px; }
     .piece { padding: 3px; }
 }
 .puzzle-grid .cell.empty { background: #222; }
+.puzzle-grid .cell.required { 
+    background: #222;
+    box-shadow: inset 0 0 0 2px rgba(200,150,255,0.6);
+}
 .puzzle-grid .cell.filled { background: #f90; }
 .puzzle-grid .cell.selected-placed { outline: 2px solid #4af; outline-offset: -2px; }
 .puzzle-grid .cell.solid { background: #666; }
@@ -110,13 +124,29 @@ h1, h2 { margin-bottom: 10px; }
     align-items: center;
     justify-content: center;
     touch-action: manipulation;
+    position: relative;
 }
 .piece.selected {
     outline: 3px solid #4af;
     background: #4d4d6c;
 }
+.piece.sacrifice-selected {
+    outline: 3px solid #f64;
+    background: #5c3d3d;
+}
 .piece:active { cursor: grabbing; }
 .piece.dragging { opacity: 0.5; }
+.expiry-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: #555;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+.expiry-badge.expiry-low { background: #c44; }
 .piece-grid {
     display: grid;
     gap: 1px;
