@@ -972,7 +972,10 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
             );
         }
         
+        console.log('Completion check:', totalFilled >= totalEmpty, requiredSatisfied, 'result:', totalFilled >= totalEmpty && requiredSatisfied);
+        
         if (totalFilled >= totalEmpty && requiredSatisfied) {
+            console.log('COMPLETING PUZZLE:', puzzle.id);
             // Puzzle completed - no undo available
             lastPlacement = null;
             // Calculate points
