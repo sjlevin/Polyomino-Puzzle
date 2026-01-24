@@ -1,3 +1,7 @@
+// Version marker for cache busting
+const GAME_VERSION = '2024-01-24-v2';
+console.log('Game version:', GAME_VERSION);
+
 // Piece definitions: [shape grid, level]
 const PIECES = {
     dot:    { shape: [[1]], level: 1 },
