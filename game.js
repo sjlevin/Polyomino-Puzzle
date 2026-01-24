@@ -948,19 +948,10 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
         // Track for undo (only if placing from hand, not moving within puzzle)
         const canUndo = !fromPuzzle && draggedIndex !== null;
         
-        // Only decrement turns if NOT moving within same puzzle
-        if (!isMovingWithinSamePuzzle) {
-            decrementAllTurns();
-        }
-        
-        // Check completion
+        // Check completion BEFORE decrementing turns (which may modify puzzle arrays)
         const totalEmpty = puzzle.grid.flat().filter(c => c).length;
         const totalFilled = puzzle.placedPieces.reduce((sum, p) => 
             sum + getRotatedShape(p.type, p.rotation, p.mirror).flat().filter(c => c).length, 0);
-        
-        if (totalFilled >= totalEmpty - 1) {
-            console.log('Near completion:', puzzle.id, 'empty:', totalEmpty, 'filled:', totalFilled, 'requiredPiece:', JSON.stringify(puzzle.requiredPiece), 'pieces:', JSON.stringify(puzzle.placedPieces));
-        }
         
         // Check required piece constraint
         let requiredSatisfied = true;
@@ -972,10 +963,14 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
             );
         }
         
-        console.log('Completion check:', totalFilled >= totalEmpty, requiredSatisfied, 'result:', totalFilled >= totalEmpty && requiredSatisfied);
+        const isComplete = totalFilled >= totalEmpty && requiredSatisfied;
         
-        if (totalFilled >= totalEmpty && requiredSatisfied) {
-            console.log('COMPLETING PUZZLE:', puzzle.id);
+        // Only decrement turns if NOT moving within same puzzle
+        if (!isMovingWithinSamePuzzle) {
+            decrementAllTurns();
+        }
+        
+        if (isComplete) {
             // Puzzle completed - no undo available
             lastPlacement = null;
             // Calculate points
@@ -983,7 +978,7 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
                 // Par-based scoring: fractions of base based on timer
                 const cells = totalEmpty;
                 const base = Math.ceil(cells / 2) + (puzzle.requiredPiece ? 3 : 0);
-                const timerPct = puzzle.turnsLeft / puzzle.maxTurns;
+                const timerPct = (puzzle.turnsLeft + 1) / puzzle.maxTurns; // +1 because we already decremented
                 let pts;
                 if (timerPct > 0.6) pts = base;
                 else if (timerPct > 0.3) pts = Math.floor(base * 2 / 3);
@@ -997,12 +992,15 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
             if (tier === 1) stats.tier1Solved++;
             else stats.tier2Solved++;
             updatePuzzleStatus(puzzle.id, 'solved');
-            puzzleArray.splice(puzzleIndex, 1);
+            // Find puzzle by ID since index may have changed after decrementAllTurns
+            const idx = puzzleArray.findIndex(p => p.id === puzzle.id);
+            if (idx >= 0) puzzleArray.splice(idx, 1);
             addNewPuzzle(tier);
             selectedPiece = null;
         } else if (canUndo) {
-            // Track for undo
-            lastPlacement = { tier, puzzleIndex, placedIndex, pieceType: draggedPiece };
+            // Track for undo - find current index
+            const idx = puzzleArray.findIndex(p => p.id === puzzle.id);
+            lastPlacement = { tier, puzzleIndex: idx, placedIndex, pieceType: draggedPiece };
         }
         render();
     }
