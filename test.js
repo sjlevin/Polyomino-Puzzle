@@ -269,4 +269,134 @@ test('countCells: counts filled cells', () => {
 
 // Summary
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
-process.exit(failed > 0 ? 1 : 0);
+
+// Reset counters for new test section
+let passed2 = 0, failed2 = 0;
+function test2(name, fn) {
+    try {
+        fn();
+        console.log(`✓ ${name}`);
+        passed2++;
+    } catch (e) {
+        console.log(`✗ ${name}`);
+        console.log(`  ${e.message}`);
+        failed2++;
+    }
+}
+
+console.log('\n=== Completion Tests ===\n');
+
+// Simulate the completion check logic
+function checkCompletion(puzzle) {
+    const totalEmpty = puzzle.grid.flat().filter(c => c).length;
+    const totalFilled = puzzle.placedPieces.reduce((sum, p) => {
+        const shape = getRotatedShape(p.shape, p.rotation, p.mirror);
+        return sum + shape.flat().filter(c => c).length;
+    }, 0);
+    
+    let requiredSatisfied = true;
+    if (puzzle.requiredPiece) {
+        const rp = puzzle.requiredPiece;
+        requiredSatisfied = puzzle.placedPieces.some(p => 
+            p.type === rp.type && p.row === rp.row && p.col === rp.col && 
+            p.rotation === rp.rotation && p.mirror === rp.mirror
+        );
+    }
+    
+    return { totalEmpty, totalFilled, isComplete: totalFilled >= totalEmpty && requiredSatisfied };
+}
+
+test2('completion: simple puzzle completes', () => {
+    const puzzle = {
+        grid: [[1], [1], [1]], // 3 cells vertical
+        placedPieces: [
+            { shape: [[1,1]], rotation: 1, mirror: false, row: 0, col: 0, type: 'domino' }, // vertical domino = 2 cells
+            { shape: [[1]], rotation: 0, mirror: false, row: 2, col: 0, type: 'dot' } // 1 cell
+        ]
+    };
+    const result = checkCompletion(puzzle);
+    assert.strictEqual(result.totalEmpty, 3);
+    assert.strictEqual(result.totalFilled, 3);
+    assert.strictEqual(result.isComplete, true);
+});
+
+test2('completion: incomplete puzzle does not complete', () => {
+    const puzzle = {
+        grid: [[1], [1], [1]], // 3 cells
+        placedPieces: [
+            { shape: [[1,1]], rotation: 1, mirror: false, row: 0, col: 0, type: 'domino' } // only 2 cells
+        ]
+    };
+    const result = checkCompletion(puzzle);
+    assert.strictEqual(result.totalFilled, 2);
+    assert.strictEqual(result.isComplete, false);
+});
+
+test2('completion: required piece must be satisfied', () => {
+    const puzzle = {
+        grid: [[1,1,1]], // 3 cells
+        placedPieces: [
+            { shape: [[1,1,1]], rotation: 0, mirror: false, row: 0, col: 0, type: 'tromino_i' }
+        ],
+        requiredPiece: { type: 'tromino_i', row: 0, col: 0, rotation: 0, mirror: false }
+    };
+    const result = checkCompletion(puzzle);
+    assert.strictEqual(result.isComplete, true);
+});
+
+test2('completion: wrong piece type fails required constraint', () => {
+    const puzzle = {
+        grid: [[1,1,1]], // 3 cells
+        placedPieces: [
+            { shape: [[1,1,1]], rotation: 0, mirror: false, row: 0, col: 0, type: 'tromino_i' }
+        ],
+        requiredPiece: { type: 'tromino_l', row: 0, col: 0, rotation: 0, mirror: false }
+    };
+    const result = checkCompletion(puzzle);
+    assert.strictEqual(result.totalFilled, 3);
+    assert.strictEqual(result.isComplete, false); // wrong type
+});
+
+test2('completion: wrong position fails required constraint', () => {
+    const puzzle = {
+        grid: [[1,1,1,1]], // 4 cells
+        placedPieces: [
+            { shape: [[1,1,1]], rotation: 0, mirror: false, row: 0, col: 1, type: 'tromino_i' },
+            { shape: [[1]], rotation: 0, mirror: false, row: 0, col: 0, type: 'dot' }
+        ],
+        requiredPiece: { type: 'tromino_i', row: 0, col: 0, rotation: 0, mirror: false }
+    };
+    const result = checkCompletion(puzzle);
+    assert.strictEqual(result.totalFilled, 4);
+    assert.strictEqual(result.isComplete, false); // wrong position
+});
+
+test2('completion: wrong rotation fails required constraint', () => {
+    const puzzle = {
+        grid: [[1],[1],[1]], // 3 cells vertical
+        placedPieces: [
+            { shape: [[1,1,1]], rotation: 1, mirror: false, row: 0, col: 0, type: 'tromino_i' }
+        ],
+        requiredPiece: { type: 'tromino_i', row: 0, col: 0, rotation: 0, mirror: false }
+    };
+    const result = checkCompletion(puzzle);
+    assert.strictEqual(result.isComplete, false); // wrong rotation
+});
+
+test2('completion: tetro_s + domino fills 6 cells', () => {
+    // Reproducing the bug case
+    const puzzle = {
+        grid: [[1,1,1],[1,1,0],[0,1,0]], // 6 cells
+        placedPieces: [
+            { shape: [[0,1,1],[1,1,0]], rotation: 1, mirror: false, row: 0, col: 0, type: 'tetro_s' }, // 4 cells
+            { shape: [[1,1]], rotation: 2, mirror: false, row: 0, col: 1, type: 'domino' } // 2 cells
+        ]
+    };
+    const result = checkCompletion(puzzle);
+    assert.strictEqual(result.totalEmpty, 6);
+    assert.strictEqual(result.totalFilled, 6);
+    assert.strictEqual(result.isComplete, true);
+});
+
+console.log(`\n=== Completion Results: ${passed2} passed, ${failed2} failed ===`);
+process.exit((failed + failed2) > 0 ? 1 : 0);
