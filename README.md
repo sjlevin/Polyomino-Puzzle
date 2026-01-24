@@ -49,15 +49,46 @@ Timer colors:
 - 🔴 Red: <30% remaining
 
 ### Pieces
-9 polyomino types across 4 levels:
+Standard mode has 9 polyomino types across 4 levels:
 - Level 1: Dot (1 cell)
 - Level 2: Domino (2 cells)
 - Level 3: Tromino I, Tromino L (3 cells)
 - Level 4: Tetro I, O, T, S, L (4 cells)
 
+Advanced mode adds 12 pentominoes (Level 5) obtainable via sacrifice.
+
 ### Scoring
 - Points come only from completing Tier 2 puzzles
 - Track your efficiency with Points/Turn ratio
+
+## Advanced Mode
+
+Click the "Standard"/"★ Advanced" toggle button to switch modes.
+
+### Differences from Standard Mode
+
+**Larger Puzzles**: T2 puzzles are 10-20 cells (up to 7x7 grids)
+
+**Piece Expiry**: Each piece has a 15-turn timer. When it reaches 0, the piece is lost. Badge shows turns remaining (red when ≤3).
+
+**Piece Limit**: Maximum 12 pieces in hand. "Take Dot" disabled at limit.
+
+**No Refunds**: When puzzles expire, placed pieces are NOT returned.
+
+**Sacrifice System**: Click "Sacrifice" to trade 3 same-level pieces for 1 random piece of the next level. This is how you obtain pentominoes (Level 5).
+
+**Required Piece Constraint**: Some T2 puzzles show a purple ghost outline. You must place the exact piece type in that exact position/rotation to complete the puzzle. Other pieces cannot overlap the ghost area.
+
+**Par-Based Scoring**: Points decrease as the timer depletes:
+- 🟢 >60% timer: Full points (base = ceil(cells/2))
+- 🟡 30-60% timer: 2/3 of base points
+- 🔴 <30% timer: 1/3 of base points
+- +3 bonus points for puzzles with required piece constraint
+
+### Undo Button
+After placing a piece on an unfinished puzzle, click "Undo" to return it to your hand.
+- Standard mode: Refunds the turn and restores all timers
+- Advanced mode: No refund (piece returns but turn is spent)
 - Stats show solved vs expired puzzles per tier
 
 ### Save System
