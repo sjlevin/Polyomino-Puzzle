@@ -557,6 +557,7 @@ function generatePuzzle(tier) {
 
 function addNewPuzzle(tier) {
     const target = tier === 1 ? tier1Puzzles : tier2Puzzles;
+    if (target.length >= 4) return; // Don't exceed 4 puzzles per tier
     target.push(generatePuzzle(tier));
 }
 
@@ -1215,7 +1216,9 @@ function render() {
     
     document.getElementById('points').textContent = points;
     document.getElementById('turns').textContent = totalTurns;
-    document.getElementById('ppt').textContent = totalTurns > 0 ? (points / totalTurns).toFixed(2) : '0.00';
+    const pptValue = totalTurns > 0 ? (points / totalTurns).toFixed(2) : '0.00';
+    document.getElementById('ppt').textContent = pptValue;
+    document.getElementById('ppt-header').textContent = pptValue;
     document.getElementById('t1-solved').textContent = stats.tier1Solved;
     document.getElementById('t1-expired').textContent = stats.tier1Expired;
     document.getElementById('t2-solved').textContent = stats.tier2Solved;
