@@ -47,6 +47,133 @@ let puzzleSeq = { 1: 0, 2: 0 };
 const TIER1_TURNS = 8;
 const TIER2_TURNS = 12;
 const PIECE_EXPIRY = 15;
+
+// Starfield with nebulae and galaxies - larger canvas for panning
+let starfieldOffset = { x: 0, y: 0 };
+const STARFIELD_PADDING = 500; // extra canvas size for panning
+
+function initStarfield() {
+    const canvas = document.querySelector('#starfield canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth + STARFIELD_PADDING * 2;
+    canvas.height = window.innerHeight + STARFIELD_PADDING * 2;
+    starfieldOffset = { x: 0, y: 0 };
+    canvas.style.transform = `translate(${-STARFIELD_PADDING}px, ${-STARFIELD_PADDING}px)`;
+    
+    // Background
+    ctx.fillStyle = '#0a0a12';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Nebulae
+    const nebulaColors = [
+        ['rgba(120,40,180,0.25)', 'rgba(80,20,140,0.15)'],
+        ['rgba(40,120,180,0.25)', 'rgba(20,80,140,0.15)'],
+        ['rgba(180,40,80,0.2)', 'rgba(140,20,60,0.12)'],
+        ['rgba(40,180,120,0.2)', 'rgba(20,140,80,0.12)'],
+        ['rgba(180,120,40,0.18)', 'rgba(140,80,20,0.1)'],
+    ];
+    for (let i = 0; i < 5; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const r = 250 + Math.random() * 350;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, nebulaColors[i][0]);
+        grad.addColorStop(0.5, nebulaColors[i][1]);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Galaxies
+    for (let i = 0; i < 4; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const size = 30 + Math.random() * 50;
+        const rotation = Math.random() * Math.PI * 2;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rotation);
+        // Galaxy core
+        const core = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 0.3);
+        core.addColorStop(0, 'rgba(255,250,230,0.4)');
+        core.addColorStop(1, 'transparent');
+        ctx.fillStyle = core;
+        ctx.fillRect(-size, -size, size * 2, size * 2);
+        // Spiral arms (elliptical glow)
+        ctx.scale(1, 0.4);
+        const arms = ctx.createRadialGradient(0, 0, size * 0.2, 0, 0, size);
+        arms.addColorStop(0, 'rgba(200,180,255,0.15)');
+        arms.addColorStop(0.5, 'rgba(150,150,200,0.08)');
+        arms.addColorStop(1, 'transparent');
+        ctx.fillStyle = arms;
+        ctx.fillRect(-size, -size * 2, size * 2, size * 4);
+        ctx.restore();
+    }
+    
+    // Stars
+    for (let i = 0; i < 300; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const size = Math.random() < 0.9 ? 1 : 1.5;
+        const alpha = 0.3 + Math.random() * 0.7;
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function panStarfield() {
+    const canvas = document.querySelector('#starfield canvas');
+    const dx = (Math.random() - 0.5) * 80;
+    const dy = (Math.random() - 0.5) * 80;
+    starfieldOffset.x = Math.max(-STARFIELD_PADDING, Math.min(STARFIELD_PADDING, starfieldOffset.x + dx));
+    starfieldOffset.y = Math.max(-STARFIELD_PADDING, Math.min(STARFIELD_PADDING, starfieldOffset.y + dy));
+    canvas.style.transition = 'transform 1.5s ease-out';
+    canvas.style.transform = `translate(${-STARFIELD_PADDING + starfieldOffset.x}px, ${-STARFIELD_PADDING + starfieldOffset.y}px)`;
+}
+
+function showComet() {
+    const comet = document.createElement('div');
+    comet.className = 'comet';
+    
+    // Random direction: 0=left, 1=right, 2=top, 3=bottom
+    const dir = Math.floor(Math.random() * 4);
+    const angle = (Math.random() - 0.5) * 40; // slight angle variation
+    let startX, startY, endX, endY;
+    
+    if (dir === 0) { // from left
+        startX = -50; startY = Math.random() * 70 + 15;
+        endX = 110; endY = startY + angle;
+    } else if (dir === 1) { // from right
+        startX = 110; startY = Math.random() * 70 + 15;
+        endX = -10; endY = startY + angle;
+    } else if (dir === 2) { // from top
+        startX = Math.random() * 80 + 10; startY = -10;
+        endX = startX + angle; endY = 110;
+    } else { // from bottom
+        startX = Math.random() * 80 + 10; startY = 110;
+        endX = startX + angle; endY = -10;
+    }
+    
+    // Calculate rotation for tail
+    const dx = endX - startX, dy = endY - startY;
+    const rot = Math.atan2(dy, dx) * 180 / Math.PI;
+    
+    comet.style.left = startX + 'vw';
+    comet.style.top = startY + 'vh';
+    comet.style.setProperty('--tail-rotation', rot + 'deg');
+    document.body.appendChild(comet);
+    
+    comet.animate([
+        { left: startX + 'vw', top: startY + 'vh' },
+        { left: endX + 'vw', top: endY + 'vh' }
+    ], { duration: 1000 + Math.random() * 500, easing: 'linear' });
+    setTimeout(() => comet.remove(), 1500);
+}
+
+window.addEventListener('resize', initStarfield);
+document.addEventListener('DOMContentLoaded', initStarfield);
 let points = 0;
 let totalTurns = 0;
 let stats = { tier1Solved: 0, tier1Expired: 0, tier2Solved: 0, tier2Expired: 0 };
@@ -994,23 +1121,30 @@ function tryPlacePieceAt(tier, puzzleIndex, row, col) {
             // Puzzle completed - no undo available
             lastPlacement = null;
             // Calculate points
+            let earnedPts = 0;
             if (advancedMode && tier === 2) {
                 // Par-based scoring: fractions of base based on timer
                 const cells = totalEmpty;
                 const base = Math.ceil(cells / 2) + (puzzle.requiredPiece ? 3 : 0);
                 const timerPct = (puzzle.turnsLeft + 1) / puzzle.maxTurns; // +1 because we already decremented
-                let pts;
-                if (timerPct > 0.6) pts = base;
-                else if (timerPct > 0.3) pts = Math.floor(base * 2 / 3);
-                else pts = Math.floor(base / 3);
-                points += pts;
+                if (timerPct > 0.6) earnedPts = base;
+                else if (timerPct > 0.3) earnedPts = Math.floor(base * 2 / 3);
+                else earnedPts = Math.floor(base / 3);
+                points += earnedPts;
             } else {
-                points += puzzle.points;
+                earnedPts = puzzle.points;
+                points += earnedPts;
             }
             puzzle.placedPieces.forEach(p => addPieceToHand(p.type));
             if (puzzle.reward) addPieceToHand(puzzle.reward);
             if (tier === 1) stats.tier1Solved++;
             else stats.tier2Solved++;
+            // Spawn comets: 1 for T1, or equal to points for T2
+            const cometCount = tier === 2 && earnedPts > 0 ? earnedPts : 1;
+            for (let i = 0; i < cometCount; i++) {
+                setTimeout(() => showComet(), i * 150);
+            }
+            panStarfield();
             updatePuzzleStatus(puzzle.id, 'solved');
             // Find puzzle by ID since index may have changed after decrementAllTurns
             const idx = puzzleArray.findIndex(p => p.id === puzzle.id);

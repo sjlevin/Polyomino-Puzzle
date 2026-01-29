@@ -1,6 +1,6 @@
 # Polyomino Puzzle
 
-A browser-based polyomino puzzle game where you fill shapes with pieces to earn points.
+A browser-based polyomino puzzle game where you fill shapes with pieces to earn points. Features a spaceship cockpit theme with animated starfield, nebulae, galaxies, and comet effects.
 
 ## Play Online
 
@@ -29,13 +29,20 @@ Earn points by completing puzzles. Build up your piece collection with Tier 1 pu
 
 **Tier 1 (top row)** - Earn Pieces
 - Small puzzles (1-5 cells)
-- Reward: A new polyomino piece
+- Reward: A new polyomino piece (shown as pink/purple crystal)
 - No points awarded
 
 **Tier 2 (bottom row)** - Earn Points  
 - Large puzzles (6-14 cells)
 - Reward: Points based on puzzle size
 - No pieces awarded
+
+### Visual Effects
+- **Starfield**: Animated background with stars, colorful nebulae, and galaxies
+- **Comets**: Solving puzzles triggers comets streaking across the screen
+  - Tier 1: 1 comet per solve
+  - Tier 2: Comets equal to points earned
+- **Background pan**: The starfield slowly pans as you solve puzzles, giving a tour of the universe
 
 ### Timer System
 Each puzzle has a countdown timer (pie chart). Every time you place a piece on ANY puzzle, all timers tick down by 1. If a timer reaches 0:

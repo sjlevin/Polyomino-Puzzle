@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="starfield"><canvas></canvas></div>
     <div id="storage-consent" class="hidden">
         <p>Save your game progress? Data is stored locally in your browser only.</p>
         <button id="accept-storage">Yes, save my progress</button>
@@ -14,25 +15,27 @@
     </div>
     <div id="game">
         <h1>Polyomino Puzzle</h1>
+        <div id="pieces">
+            <div id="pieces-header">
+                <h2>Your Pieces 
+                    <button id="take-dot">Take Dot (1 turn)</button>
+                    <button id="rotate-btn">Rotate</button>
+                    <button id="mirror-btn">Mirror</button>
+                    <button id="return-btn" class="hidden">Return Piece</button>
+                    <button id="undo-btn" class="hidden">Undo</button>
+                    <button id="sacrifice-btn" class="hidden">Sacrifice</button>
+                    <span id="piece-warning" class="hidden"></span>
+                    <button id="reset-game">Reset Game</button>
+                    <button id="advanced-toggle">Standard Mode</button>
+                </h2>
+            </div>
+            <div id="piece-supply"></div>
+        </div>
         <div id="puzzles">
             <h2>Tier 1 - Earn Pieces</h2>
             <div id="puzzle-row-1" class="puzzle-row"></div>
             <h2>Tier 2 - Earn Points</h2>
             <div id="puzzle-row-2" class="puzzle-row"></div>
-        </div>
-        <div id="pieces">
-            <h2>Your Pieces 
-                <button id="take-dot">Take Dot (1 turn)</button>
-                <button id="rotate-btn">Rotate</button>
-                <button id="mirror-btn">Mirror</button>
-                <button id="return-btn" class="hidden">Return Piece</button>
-                <button id="undo-btn" class="hidden">Undo</button>
-                <button id="sacrifice-btn" class="hidden">Sacrifice</button>
-                <span id="piece-warning" class="hidden"></span>
-                <button id="reset-game">Reset Game</button>
-                <button id="advanced-toggle">Standard Mode</button>
-            </h2>
-            <div id="piece-supply"></div>
         </div>
         <div id="score">
             <div>Points: <span id="points">0</span> | Turns: <span id="turns">0</span> | Pts/Turn: <span id="ppt">0.00</span></div>
